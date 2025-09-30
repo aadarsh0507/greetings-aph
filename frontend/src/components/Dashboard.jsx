@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Calendar, Send, Users } from 'lucide-react';
+import { Calendar, Send, Users, RefreshCw } from 'lucide-react';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -50,6 +50,22 @@ const Dashboard = () => {
     }
   };
 
+  // Auto-refresh function to fetch updated data periodically
+  const refreshData = async () => {
+    if (filter === 'today') {
+      await fetchPatients('today');
+    } else if (filter === 'tomorrow') {
+      await fetchPatients('tomorrow');
+    }
+  };
+
+  // Set up auto-refresh every 5 minutes
+  React.useEffect(() => {
+    const interval = setInterval(refreshData, 5 * 60 * 1000); // 5 minutes
+    return () => clearInterval(interval);
+  }, [filter]);
+
+
   // Send patient data to WhatsApp template backend endpoint, mapping date of birth
   const sendGreetings = async () => {
     if (patients.length === 0) {
@@ -57,9 +73,9 @@ const Dashboard = () => {
       return;
     }
     try {
-      // Map patients to WhatsApp API expected format: Contact, Template, Param (name)
+      // Prepare the payload for the backend as { patients: [...] } with Contact and Param fields
       const whatsappPayload = patients.map((patient) => ({
-        Contact: patient.mobile,
+        Contact: patient.mobile, // Use the formatted mobile with country code
         Param: patient.name
       }));
       const response = await fetch('/api/send-whatsapp', {
@@ -146,22 +162,34 @@ const Dashboard = () => {
       {/* Patients List */}
       <div className="bg-white rounded-xl shadow-lg p-6">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
-            <Users className="text-blue-600" size={20} />
-            {filter === 'today' ? "Today's Birthdays" : filter === 'tomorrow' ? "Tomorrow's Birthdays" : 'Patient Birthdays'}
-            <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">
-              {patients.length}
-            </span>
-          </h3>
-          {patients.length > 0 && (
+          <div className="flex items-center gap-4">
+            <h3 className="text-lg font-semibold text-gray-800 flex items-center gap-2">
+              <Users className="text-blue-600" size={20} />
+              {filter === 'today' ? "Today's Birthdays" : filter === 'tomorrow' ? "Tomorrow's Birthdays" : 'Patient Birthdays'}
+              <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">
+                {patients.length}
+              </span>
+            </h3>
             <button
-              onClick={sendGreetings}
-              className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
+              onClick={() => refreshData()}
+              disabled={loading}
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
             >
-              <Send size={20} />
-              Send Greetings ({patients.length})
+              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+              Refresh
             </button>
-          )}
+          </div>
+          <div className="flex items-center gap-4">
+            {patients.length > 0 && (
+              <button
+                onClick={sendGreetings}
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
+              >
+                <Send size={20} />
+                Send Greetings ({patients.length})
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Error Message */}
@@ -197,7 +225,13 @@ const Dashboard = () => {
                     <td className="text-center py-3 px-4 text-gray-600 font-medium">{index + 1}</td>
                     <td className="py-3 px-4 font-medium text-gray-800">{patient.name || 'N/A'}</td>
                     <td className="py-3 px-4 text-gray-600">{patient.uhid || 'N/A'}</td>
-                    <td className="py-3 px-4 text-gray-600">{patient.mobile || 'N/A'}</td>
+                    <td className="py-3 px-4 text-gray-600">
+                      {patient.mobile ? (
+                        <span className="font-mono text-sm font-medium text-gray-800">
+                          {patient.mobile}
+                        </span>
+                      ) : 'N/A'}
+                    </td>
                     <td className="py-3 px-4 text-gray-600">{formatDate(patient.dob)}</td>
                     <td className="py-3 px-4 text-gray-600">{formatAge(patient.age)}</td>
                     <td className="py-3 px-4 text-gray-600">{patient.gender || 'N/A'}</td>

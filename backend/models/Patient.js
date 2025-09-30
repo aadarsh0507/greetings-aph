@@ -12,7 +12,7 @@ const patientSchema = new mongoose.Schema({
     required: [true, 'Please provide a mobile number'],
     trim: true,
     unique: true,
-    match: [/^\+?[1-9]\d{1,14}$/, 'Please provide a valid mobile number']
+    match: [/^\+[1-9]\d{1,14}$/, 'Please provide a valid mobile number with country code (e.g., +919876543210)']
   },
   dob: {
     type: Date,

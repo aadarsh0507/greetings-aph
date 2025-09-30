@@ -155,15 +155,6 @@ const Login = ({ onSwitchToRegister }) => {
             </p>
           </div>
         </div>
-
-        {/* Demo Credentials */}
-        <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-yellow-800 mb-2">Demo Credentials</h3>
-          <div className="text-xs text-yellow-700 space-y-1">
-            <p><strong>Admin:</strong> admin@hospital.com / admin123</p>
-            <p><strong>Staff:</strong> staff@hospital.com / staff123</p>
-          </div>
-        </div>
       </div>
     </div>
   );
