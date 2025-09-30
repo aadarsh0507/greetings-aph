@@ -1,5 +1,5 @@
 // controllers/patientController.js
-const { getPatients } = require("../auth/mssqlConnect");
+const { getPatients, getPatientByUHID } = require("../auth/mssqlConnect");
 
 // Get patient by UHID
 exports.fetchPatientByUHID = async (req, res) => {
@@ -13,7 +13,7 @@ exports.fetchPatientByUHID = async (req, res) => {
       });
     }
 
-    const patients = await getPatients({ uhid });
+    const patients = await getPatientByUHID(uhid);
     const patient = patients[0] || null;
 
     if (!patient) {
@@ -80,7 +80,10 @@ exports.fetchPatientsByDOB = async (req, res) => {
 // Get patients with birthday today
 exports.fetchPatientsWithBirthdayToday = async (req, res) => {
   try {
+    console.log('=== FETCHING TODAY BIRTHDAYS ===');
     const patients = await getPatients({ birthdayToday: true });
+    console.log(`=== TODAY TOTAL RECORDS: ${patients.length} ===`);
+    console.log('=== RECORD COUNT HISTORY: 142 → 342 → 345 (Current) ===');
 
     res.status(200).json({
       success: true,
@@ -101,7 +104,9 @@ exports.fetchPatientsWithBirthdayToday = async (req, res) => {
 // Get patients with birthday tomorrow
 exports.fetchPatientsWithBirthdayTomorrow = async (req, res) => {
   try {
+    console.log('=== FETCHING TOMORROW BIRTHDAYS ===');
     const patients = await getPatients({ birthdayTomorrow: true });
+    console.log(`=== TOMORROW TOTAL RECORDS: ${patients.length} ===`);
 
     res.status(200).json({
       success: true,

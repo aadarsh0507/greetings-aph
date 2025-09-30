@@ -29,31 +29,29 @@ const Header = () => {
           <div className="relative">
             <button
               onClick={() => setShowDropdown(!showDropdown)}
-              className="flex items-center space-x-3 text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              className="flex items-center space-x-2 text-sm rounded-lg px-3 py-2 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
             >
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                  <User className="w-5 h-5 text-white" />
-                </div>
-                <div className="text-left">
-                  <p className="font-medium text-gray-900">{user?.name}</p>
-                </div>
+              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
+                <User className="w-5 h-5 text-white" />
+              </div>
+              <div className="text-left">
+                <p className="font-medium text-gray-900">{user?.name}</p>
               </div>
             </button>
 
             {/* Dropdown Menu */}
             {showDropdown && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
-                <div className="px-4 py-2 border-b border-gray-100">
+              <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg py-1 z-50 border border-gray-200">
+                <div className="px-4 py-3 border-b border-gray-100">
                   <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                  <p className="text-sm text-gray-500">{user?.email}</p>
+                  <p className="text-xs text-gray-500 truncate">{user?.email}</p>
                 </div>
                 
                 <button
                   onClick={() => setShowDropdown(false)}
-                  className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
+                  className="flex w-full items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
                 >
-                  <Settings className="w-4 h-4 mr-3" />
+                  <Settings className="w-4 h-4 mr-3 text-gray-400" />
                   Profile Settings
                 </button>
                 
@@ -61,7 +59,7 @@ const Header = () => {
                   onClick={handleLogout}
                   className="flex w-full items-center px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
                 >
-                  <LogOut className="w-4 h-4 mr-3" />
+                  <LogOut className="w-4 h-4 mr-3 text-red-500" />
                   Sign Out
                 </button>
               </div>

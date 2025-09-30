@@ -1,4 +1,6 @@
+
 const sendWhatsApp = require('../models/sendWhatsApp');
+const addContact = require('../models/addContact');
 
 // Controller to handle WhatsApp message sending
 exports.sendWhatsAppMessage = async (req, res) => {
@@ -10,13 +12,20 @@ exports.sendWhatsAppMessage = async (req, res) => {
     const results = [];
     for (const patient of patients) {
       try {
+        // Add contact before sending WhatsApp message
+        const addContactResult = await addContact({
+          Contact: patient.Contact,
+          Name: patient.Param, // patient.Param is the name
+          Tag: patient.Tag // optional tag
+        });
+        console.log('Add Contact API response:', addContactResult);
         const result = await sendWhatsApp(patient);
         console.log('WhatsApp API response:', result);
         // Mark as failed if ApiResponse contains an error message
         if (result && typeof result.ApiResponse === 'string' && result.ApiResponse.toLowerCase().includes('invalid')) {
-          results.push({ patient, result, success: false, error: result.ApiResponse });
+          results.push({ patient, addContactResult, result, success: false, error: result.ApiResponse });
         } else {
-          results.push({ patient, result, success: true });
+          results.push({ patient, addContactResult, result, success: true });
         }
       } catch (err) {
         console.error('WhatsApp API error:', err.message);

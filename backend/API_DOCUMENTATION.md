@@ -207,7 +207,10 @@ Each patient record contains the following fields:
 | `dob` | Date | Date of birth (ISO format) |
 | `gender` | String | Gender (Male/Female) |
 | `uhid` | String | Unique Hospital ID |
-| `mobile` | String | Mobile phone number |
+| `mobile` | String | Mobile phone number with country code (e.g., +919876543210) |
+| `countryCode` | String | Country code (e.g., 91) |
+| `countryName` | String | Country name (e.g., India) |
+| `originalMobile` | String | Original mobile number from database |
 | `address` | String | Patient's address |
 | `age` | Number | Calculated age from DOB |
 
