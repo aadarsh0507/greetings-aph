@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  # MongoDB service for storing users and application data
+  mongodb:
+    image: mongo:7
+    container_name: aph-greetings-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-adminpassword}
+      MONGO_INITDB_DATABASE: birthday_greeting
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    networks:
+      - aph-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # APH Greetings Application (Frontend + Backend)
+  app:
+    image: ghcr.io/${GITHUB_REPOSITORY:-yourusername/aph-grettings}:latest
+    container_name: aph-greetings-app
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      # Node Environment
+      NODE_ENV: production
+      PORT: 5000
+      
+      # MongoDB Connection
+      MONGODB_URI: mongodb://admin:${MONGO_ROOT_PASSWORD:-adminpassword}@mongodb:27017/birthday_greeting?authSource=admin
+      
+      # MSSQL Connection (Your existing database)
+      MSSQL_SERVER: ${MSSQL_SERVER}
+      MSSQL_DATABASE: ${MSSQL_DATABASE}
+      MSSQL_USER: ${MSSQL_USER}
+      MSSQL_PASSWORD: ${MSSQL_PASSWORD}
+      MSSQL_PORT: ${MSSQL_PORT:-1433}
+      
+      # JWT Secret
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-this-in-production}
+      JWT_EXPIRE: ${JWT_EXPIRE:-7d}
+      
+      # CORS Configuration
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      
+      # Rate Limiting
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
+      RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-100}
+      
+      # WhatsApp API Configuration
+      WHATSAPP_API_URL: ${WHATSAPP_API_URL}
+      WHATSAPP_API_KEY: ${WHATSAPP_API_KEY}
+      WHATSAPP_TEMPLATE_NAME: ${WHATSAPP_TEMPLATE_NAME:-birthday_greeting}
+      
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - aph-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
+
+networks:
+  aph-network:
+    driver: bridge
+

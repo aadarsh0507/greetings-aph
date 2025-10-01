@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Calendar, Send, Users, RefreshCw } from 'lucide-react';
+import { Calendar, Send, Users } from 'lucide-react';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -8,12 +8,33 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState('');
   const [error, setError] = useState('');
+  const [snapshotDate, setSnapshotDate] = useState(null); // Track when snapshot was taken
 
-  const API_BASE_URL = '/api';
+  const API_BASE_URL = 'http://localhost:5000/api';
 
 
 
   const fetchPatients = async (filterType) => {
+    // Check if we already have a snapshot for today/tomorrow
+    const currentDate = new Date().toDateString();
+    const snapshotKey = `snapshot_${filterType}_${currentDate}`;
+    
+    // Try to load from localStorage first
+    const savedSnapshot = localStorage.getItem(snapshotKey);
+    if (savedSnapshot) {
+      try {
+        const snapshot = JSON.parse(savedSnapshot);
+        setPatients(snapshot.data || []);
+        setFilter(filterType);
+        setSnapshotDate(new Date(snapshot.timestamp));
+        console.log(`Loaded snapshot from ${new Date(snapshot.timestamp).toLocaleString()}: ${snapshot.data.length} patients`);
+        return; // Use cached data, don't fetch new
+      } catch (e) {
+        console.error('Failed to parse snapshot:', e);
+      }
+    }
+
+    // If no snapshot exists, fetch from server
     setLoading(true);
     setError('');
     try {
@@ -37,6 +58,17 @@ const Dashboard = () => {
       if (result.success) {
         setPatients(result.data || []);
         setFilter(filterType);
+        const timestamp = new Date();
+        setSnapshotDate(timestamp);
+        
+        // Save snapshot to localStorage
+        localStorage.setItem(snapshotKey, JSON.stringify({
+          data: result.data,
+          timestamp: timestamp.toISOString(),
+          count: result.data.length
+        }));
+        
+        console.log(`Created new snapshot: ${result.data.length} patients at ${timestamp.toLocaleString()}`);
       } else {
         setError(result.message || 'Failed to fetch patients');
         setPatients([]);
@@ -49,22 +81,6 @@ const Dashboard = () => {
       setLoading(false);
     }
   };
-
-  // Auto-refresh function to fetch updated data periodically
-  const refreshData = async () => {
-    if (filter === 'today') {
-      await fetchPatients('today');
-    } else if (filter === 'tomorrow') {
-      await fetchPatients('tomorrow');
-    }
-  };
-
-  // Set up auto-refresh every 5 minutes
-  React.useEffect(() => {
-    const interval = setInterval(refreshData, 5 * 60 * 1000); // 5 minutes
-    return () => clearInterval(interval);
-  }, [filter]);
-
 
   // Send patient data to WhatsApp template backend endpoint, mapping date of birth
   const sendGreetings = async () => {
@@ -169,15 +185,12 @@ const Dashboard = () => {
               <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">
                 {patients.length}
               </span>
+              {snapshotDate && (
+                <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                  Snapshot: {snapshotDate.toLocaleTimeString()}
+                </span>
+              )}
             </h3>
-            <button
-              onClick={() => refreshData()}
-              disabled={loading}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
-            >
-              <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-              Refresh
-            </button>
           </div>
           <div className="flex items-center gap-4">
             {patients.length > 0 && (

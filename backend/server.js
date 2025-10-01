@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const path = require('path');
 const connectDB = require('./config/database');
 require('dotenv').config();
 
@@ -24,9 +25,9 @@ app.use('/api/', limiter);
 // Logging middleware
 app.use(morgan('combined'));
 
-// CORS middleware
+// CORS middleware - Allow both local development and production
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: process.env.CORS_ORIGIN || ['http://localhost:5173', 'http://localhost:5000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -54,6 +55,22 @@ app.use('/api/users', userRoutes);
 app.use('/api/send-whatsapp', sendWhatsAppRoutes);
 
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({
+    message: '🎉 APH Greetings API Server',
+    status: 'Running',
+    version: '1.0.0',
+    endpoints: {
+      health: '/api/health',
+      auth: '/api/auth',
+      users: '/api/users',
+      sendWhatsApp: '/api/send-whatsapp'
+    },
+    documentation: 'See API_DOCUMENTATION.md for details'
+  });
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({ 
@@ -65,25 +82,29 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Root endpoint
-app.get('/', (req, res) => {
-  res.json({
-    message: 'Birthday Greeting API',
-    version: '1.0.0',
-    endpoints: {
-      health: '/api/health',
-      auth: '/api/auth',
-      users: '/api/users',
-      templates: '/api/templates'
+// Serve static files from frontend build (for production/Docker with single port)
+// When using separate ports, frontend is served independently on port 5173
+const frontendDistPath = path.join(__dirname, '../frontend/dist');
+if (require('fs').existsSync(frontendDistPath) && process.env.SERVE_FRONTEND !== 'false') {
+  console.log('📦 Serving frontend static files from:', frontendDistPath);
+  app.use(express.static(frontendDistPath));
+  
+  // Handle client-side routing - serve index.html for all non-API routes
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) {
+      return next(); // Let API routes handle themselves
     }
+    res.sendFile(path.join(frontendDistPath, 'index.html'));
   });
-});
+} else {
+  console.log('📡 Backend API only mode - Frontend served separately');
+}
 
 // Error handling middleware
 app.use(errorHandler);
 
-// 404 handler
-app.use('*', notFound);
+// 404 handler (only for API routes now)
+app.use('/api/*', notFound);
 
 const PORT = process.env.PORT || 5000;
 
