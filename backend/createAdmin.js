@@ -5,7 +5,7 @@ const User = require('./models/User');
 
 const connectDB = async () => {
   try {
-    const mongoURI = process.env.MONGODB_URI ;
+    const mongoURI = process.env.MONGO_URI;
     await mongoose.connect(mongoURI);
     console.log('✅ MongoDB connected successfully');
   } catch (error) {

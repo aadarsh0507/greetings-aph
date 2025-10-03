@@ -25,9 +25,9 @@ app.use('/api/', limiter);
 // Logging middleware
 app.use(morgan('combined'));
 
-// CORS middleware - Allow both local development and production
+// CORS middleware - Allow all origins for development
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || ['http://localhost:5173', 'http://localhost:5000'],
+  origin: true, // Allow all origins
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']

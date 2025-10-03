@@ -12,7 +12,7 @@ const Dashboard = () => {
   const [snapshotDate, setSnapshotDate] = useState(null); // Track when snapshot was taken
   const [showRegister, setShowRegister] = useState(false); // Track register page visibility
 
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ;
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 
 
