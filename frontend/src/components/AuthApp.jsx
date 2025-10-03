@@ -1,13 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import Login from './Login';
-import Register from './Register';
 import Header from './Header';
 import Dashboard from './Dashboard';
 
 const AuthApp = () => {
   const { isAuthenticated, loading } = useAuth();
-  const [authMode, setAuthMode] = useState('login'); // 'login' or 'register'
 
   // Show loading spinner while checking authentication
   if (loading) {
@@ -21,15 +19,11 @@ const AuthApp = () => {
     );
   }
 
-  // Show login/register if not authenticated
+  // Show login if not authenticated
   if (!isAuthenticated()) {
     return (
       <div>
-        {authMode === 'login' ? (
-          <Login onSwitchToRegister={() => setAuthMode('register')} />
-        ) : (
-          <Register onSwitchToLogin={() => setAuthMode('login')} />
-        )}
+        <Login />
       </div>
     );
   }

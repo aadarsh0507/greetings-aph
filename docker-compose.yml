@@ -25,11 +25,16 @@ services:
 
   # APH Greetings Application (Frontend + Backend)
   app:
-    image: ghcr.io/${GITHUB_REPOSITORY:-yourusername/aph-grettings}:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:5000/api}
     container_name: aph-greetings-app
     restart: unless-stopped
     ports:
       - "5000:5000"
+      - "5173:5173"
     environment:
       # Node Environment
       NODE_ENV: production
