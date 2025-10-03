@@ -44,12 +44,15 @@ This guide helps you configure Jenkins to automatically run the pipeline when co
 
 The current `Jenkinsfile` already includes auto-trigger configuration:
 ```groovy
-triggers {
-    githubPush()
-}
+properties([
+    pipelineTriggers([
+        githubPush()
+    ])
+])
 
 options {
     githubProjectProperty(projectUrlStr: 'https://github.com/aadarsh0507/greetings-aph')
+    buildDiscarder(logRotator(numToKeepStr: '10'))
 }
 ```
 

@@ -2,13 +2,17 @@ pipeline {
     agent any
     
     // Configure triggers for automatic builds
-    triggers {
-        githubPush()
-    }
+    properties([
+        pipelineTriggers([
+            githubPush()
+        ])
+    ])
     
     // Configure webhook for GitHub integration
     options {
         githubProjectProperty(projectUrlStr: 'https://github.com/aadarsh0507/greetings-aph')
+        // Enable GitHub webhook trigger
+        buildDiscarder(logRotator(numToKeepStr: '10'))
     }
     
     environment {
@@ -189,7 +193,7 @@ pipeline {
                         withCredentials([string(credentialsId: 'ghcr-cred', variable: 'GITHUB_TOKEN_SECURE')]) {
                             sh """
                                 echo "=== Testing Docker Login ==="
-                                echo "Token length: ${#GITHUB_TOKEN_SECURE}"
+                                echo "Token length: \${#GITHUB_TOKEN_SECURE}"
                                 echo "Logging into GitHub Container Registry..."
                                 
                                 # Try login with proper authentication
