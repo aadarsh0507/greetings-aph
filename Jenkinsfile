@@ -151,7 +151,7 @@ pipeline {
                     
                     try {
                         // Use withCredentials to securely handle the token
-                        withCredentials([string(credentialsId: 'ghcr-cred', variable: 'GITHUB_TOKEN_SECURE')]) {
+                        withCredentials([usernamePassword(credentialsId: 'ghcr-cred', usernameVariable: 'GITHUB_USERNAME', passwordVariable: 'GITHUB_TOKEN_SECURE')]) {
                             sh """
                                 echo "=== Building Final Docker Image ==="
                                 echo "Building Docker image with tag: ${IMAGE_TAG}"
@@ -169,7 +169,7 @@ pipeline {
                                 docker images | grep ${IMAGE_NAME}
                                 
                                 echo "=== Logging into GitHub Container Registry ==="
-                                echo '${GITHUB_TOKEN_SECURE}' | docker login ${REGISTRY} -u aadarsh0507 --password-stdin
+                                echo '${GITHUB_TOKEN_SECURE}' | docker login ${REGISTRY} -u '${GITHUB_USERNAME}' --password-stdin
                                 
                                 echo "=== Pushing Docker Image to GitHub Packages ==="
                                 echo "Pushing ${IMAGE_TAG}..."
