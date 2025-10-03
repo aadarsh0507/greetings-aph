@@ -44,13 +44,22 @@ This guide helps you configure Jenkins to automatically run the pipeline when co
 
 The current `Jenkinsfile` already includes auto-trigger configuration:
 ```groovy
+triggers {
+    // GitHub webhook trigger
+    githubPush()
+    
+    // Fallback: poll SCM every 5 minutes if webhook fails
+    pollSCM('H/5 * * * *')
+}
+
 options {
+    // GitHub project integration
     githubProjectProperty(projectUrlStr: 'https://github.com/aadarsh0507/greetings-aph')
+    
+    // Build management
+    timestamps()
     buildDiscarder(logRotator(numToKeepStr: '10'))
-    // Auto-trigger on GitHub push events
-    pipelineTriggers([
-        githubPush()
-    ])
+    disableConcurrentBuilds()
 }
 ```
 

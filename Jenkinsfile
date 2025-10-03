@@ -1,16 +1,21 @@
 pipeline {
     agent any
     
-    // Configure webhook for GitHub integration and auto-trigger
+    triggers {
+        // GitHub webhook trigger
+        githubPush()
+        
+        // Fallback: poll SCM every 5 minutes if webhook fails
+        pollSCM('H/5 * * * *')
+    }
+    
     options {
+        // GitHub project integration
         githubProjectProperty(projectUrlStr: 'https://github.com/aadarsh0507/greetings-aph')
-        // Enable GitHub webhook trigger
+        
+        // Build management
+        timestamps()
         buildDiscarder(logRotator(numToKeepStr: '10'))
-        // Auto-trigger on GitHub push events
-        pipelineTriggers([
-            githubPush()
-        ])
-        // Allow manual builds
         disableConcurrentBuilds()
     }
     
