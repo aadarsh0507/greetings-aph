@@ -119,9 +119,16 @@ pipeline {
                 echo '🐳 Building Docker image...'
                 script {
                     sh """
+                        echo "Building Docker image with tag: ${IMAGE_TAG}"
                         docker build -t ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} .
+                        
+                        echo "Creating additional tags..."
                         docker tag ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} ${REGISTRY}/${IMAGE_NAME}:latest
                         docker tag ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME}
+                        
+                        echo "Verifying Docker image was built successfully..."
+                        docker images | grep ${IMAGE_NAME}
+                        echo "Docker image built successfully!"
                     """
                 }
             }
@@ -140,6 +147,28 @@ pipeline {
             }
         }
         
+        stage('Debug Info') {
+            steps {
+                echo '🔍 Debug Information...'
+                script {
+                    sh """
+                        echo "=== Environment Variables ==="
+                        echo "BRANCH_NAME: ${env.BRANCH_NAME}"
+                        echo "BUILD_NUMBER: ${env.BUILD_NUMBER}"
+                        echo "IMAGE_TAG: ${IMAGE_TAG}"
+                        echo "REGISTRY: ${REGISTRY}"
+                        echo "IMAGE_NAME: ${IMAGE_NAME}"
+                        
+                        echo "=== Docker Images ==="
+                        docker images | grep ${IMAGE_NAME} || echo "No images found"
+                        
+                        echo "=== Docker System Info ==="
+                        docker version
+                    """
+                }
+            }
+        }
+        
         stage('Push to GitHub Container Registry') {
             when {
                 anyOf {
@@ -150,18 +179,37 @@ pipeline {
             steps {
                 echo '📦 Pushing Docker image to GitHub Container Registry...'
                 script {
-                    sh """
-                        echo ${GITHUB_TOKEN} | docker login ${REGISTRY} -u aadarsh0507 --password-stdin
-                        
-                        docker push ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
-                        docker push ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME}
-                        
-                        if [ "${env.BRANCH_NAME}" = "main" ]; then
-                            docker push ${REGISTRY}/${IMAGE_NAME}:latest
-                        fi
-                        
-                        docker logout ${REGISTRY}
-                    """
+                    try {
+                        sh """
+                            echo "=== Testing Docker Login ==="
+                            echo "Token length: ${#GITHUB_TOKEN}"
+                            echo "Logging into GitHub Container Registry..."
+                            echo ${GITHUB_TOKEN} | docker login ${REGISTRY} -u aadarsh0507 --password-stdin
+                            
+                            echo "=== Docker Login Successful ==="
+                            echo "Pushing Docker images..."
+                            docker push ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
+                            docker push ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME}
+                            
+                            if [ "${env.BRANCH_NAME}" = "main" ]; then
+                                echo "Pushing latest tag for main branch..."
+                                docker push ${REGISTRY}/${IMAGE_NAME}:latest
+                            fi
+                            
+                            echo "Logging out from GitHub Container Registry..."
+                            docker logout ${REGISTRY}
+                            echo "Docker push completed successfully!"
+                        """
+                    } catch (Exception e) {
+                        echo "Docker push failed: ${e.getMessage()}"
+                        sh """
+                            echo "=== Cleanup on Failure ==="
+                            docker logout ${REGISTRY} || true
+                            echo "=== Docker Images After Failure ==="
+                            docker images | grep ${IMAGE_NAME} || echo "No images found"
+                        """
+                        throw e
+                    }
                 }
             }
         }
