@@ -25,7 +25,7 @@ pipeline {
         IMAGE_NAME = 'aadarsh0507/greetings-aph'
         
         // GitHub credentials (configure in Jenkins)
-        GITHUB_TOKEN = credentials('ghcr-cred')
+        GITHUB_TOKEN = credentials('aadarsh-ghcr-cred')
         
         // Docker image tag
         IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
@@ -151,7 +151,8 @@ pipeline {
                     
                     try {
                         // Use withCredentials to securely handle the token
-                        withCredentials([usernamePassword(credentialsId: 'ghcr-cred', usernameVariable: 'GITHUB_USERNAME', passwordVariable: 'GITHUB_TOKEN_SECURE')]) {
+                        // Note: Update this credential ID to match your account credentials
+                        withCredentials([usernamePassword(credentialsId: 'aadarsh-ghcr-cred', usernameVariable: 'GITHUB_USERNAME', passwordVariable: 'GITHUB_TOKEN_SECURE')]) {
                             sh """
                                 echo "=== Building Final Docker Image ==="
                                 echo "Current directory: \$(pwd)"

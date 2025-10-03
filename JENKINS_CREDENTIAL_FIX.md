@@ -1,62 +1,82 @@
-# Jenkins Credential Fix
+# Jenkins Credential Fix - Use Your Account
 
-## Issue Fixed ✅
+## Current Issue
+- Jenkins credentials `ghcr-cred` are connected to your **friend's account**
+- But the pipeline is trying to push to **your account** (`aadarsh0507`)
+- This causes permission mismatch
 
-The Jenkins pipeline was failing because of a credential type mismatch:
-- **Error**: `Credentials 'ghcr-cred' is of type 'Username with password' where 'org.jenkinsci.plugins.plaincredentials.StringCredentials' was expected`
-- **Cause**: Jenkinsfile was expecting string credentials but `ghcr-cred` is configured as username/password
+## Solution: Update Jenkins Credentials
 
-## Solution Applied ✅
+### **Option 1: Update Existing Credential (Recommended)**
 
-Updated Jenkinsfile to use the correct credential type:
+1. **Go to Jenkins Dashboard**
+2. **Navigate to**: Manage Jenkins → Manage Credentials
+3. **Find**: `ghcr-cred` credential
+4. **Click**: "Update" or edit
+5. **Change**:
+   - Username: `aadarsh0507` (your GitHub username)
+   - Password: Your GitHub personal access token (with `write:packages` scope)
 
-### **Before (Causing Error):**
-```groovy
-withCredentials([string(credentialsId: 'ghcr-cred', variable: 'GITHUB_TOKEN_SECURE')]) {
-    echo '${GITHUB_TOKEN_SECURE}' | docker login ${REGISTRY} -u aadarsh0507 --password-stdin
-}
-```
+### **Option 2: Create New Credential**
 
-### **After (Fixed):**
-```groovy
-withCredentials([usernamePassword(credentialsId: 'ghcr-cred', usernameVariable: 'GITHUB_USERNAME', passwordVariable: 'GITHUB_TOKEN_SECURE')]) {
-    echo '${GITHUB_TOKEN_SECURE}' | docker login ${REGISTRY} -u '${GITHUB_USERNAME}' --password-stdin
-}
-```
+1. **Go to Jenkins Dashboard**
+2. **Navigate to**: Manage Jenkins → Manage Credentials
+3. **Click**: "Add Credentials"
+4. **Fill in**:
+   - Kind: `Username with password`
+   - Scope: `Global`
+   - Username: `aadarsh0507`
+   - Password: Your GitHub token
+   - ID: `aadarsh-ghcr-cred` (new ID)
+   - Description: `Aadarsh GitHub Container Registry credentials`
 
-## What This Means
-
-- ✅ **Pipeline stages work perfectly** - All quality checks and tests passed
-- ✅ **Credential binding fixed** - Now uses correct username/password type
-- ✅ **Docker login will work** - Uses both username and token from credentials
-- ✅ **Docker image will be created** - After successful pipeline completion
-
-## Next Steps
-
-1. **Push the updated Jenkinsfile:**
-   ```bash
-   git add Jenkinsfile
-   git commit -m "Fix Jenkins credential type for Docker login"
-   git push origin features
+5. **Update Jenkinsfile** to use new credential:
+   ```groovy
+   // Change line 154 in Jenkinsfile from:
+   withCredentials([usernamePassword(credentialsId: 'ghcr-cred', ...)])
+   
+   // To:
+   withCredentials([usernamePassword(credentialsId: 'aadarsh-ghcr-cred', ...)])
    ```
 
-2. **Watch the pipeline run:**
-   - All stages should complete successfully
-   - Docker image should be built and pushed to GitHub packages
+## Required GitHub Token Permissions
 
-## Expected Success Output
+Your GitHub token needs these scopes:
+- ✅ `write:packages` (Push to GHCR)
+- ✅ `read:packages` (Pull from GHCR)
+- ✅ `repo` (Repository access)
 
+## Create GitHub Token
+
+1. **Go to**: GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
+2. **Click**: "Generate new token (classic)"
+3. **Name**: `Jenkins-GHCR-Push`
+4. **Scopes**: Select `write:packages`, `read:packages`, `repo`
+5. **Generate** and copy the token
+
+## Expected Result
+
+After fixing credentials, the pipeline will successfully push to:
+- `ghcr.io/aadarsh0507/greetings-aph:features-10`
+- `ghcr.io/aadarsh0507/greetings-aph:features`
+- `ghcr.io/aadarsh0507/greetings-aph:latest`
+
+## Verification
+
+Check your GitHub profile packages at:
+`https://github.com/aadarsh0507?tab=packages`
+
+You should see the `greetings-aph` package with all the tags.
+
+## Quick Fix Commands
+
+If you want me to update the Jenkinsfile with a new credential ID:
+
+```bash
+# I can update the Jenkinsfile to use a new credential ID
+# Just let me know what you want to call it
 ```
-🎉 Pipeline completed successfully! Creating Docker image...
-🐳 Building Docker image after successful pipeline completion...
-✅ Successfully pushed ghcr.io/aadarsh0507/greetings-aph:features-X
-🎉 Docker image successfully pushed to GitHub Packages!
-```
 
-## Verify GitHub Packages
-
-After successful pipeline:
-- Go to: `https://github.com/aadarsh0507/greetings-aph/pkgs/container/greetings-aph`
-- You should see the new Docker image
-
-The pipeline is now properly configured to create Docker images after successful completion! 🎉
+**Which option do you prefer?**
+1. Update existing `ghcr-cred` with your account details
+2. Create new credential and update Jenkinsfile
