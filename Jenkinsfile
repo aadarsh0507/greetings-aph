@@ -1,18 +1,17 @@
 pipeline {
     agent any
     
-    // Configure triggers for automatic builds
-    properties([
-        pipelineTriggers([
-            githubPush()
-        ])
-    ])
-    
-    // Configure webhook for GitHub integration
+    // Configure webhook for GitHub integration and auto-trigger
     options {
         githubProjectProperty(projectUrlStr: 'https://github.com/aadarsh0507/greetings-aph')
         // Enable GitHub webhook trigger
         buildDiscarder(logRotator(numToKeepStr: '10'))
+        // Auto-trigger on GitHub push events
+        pipelineTriggers([
+            githubPush()
+        ])
+        // Allow manual builds
+        disableConcurrentBuilds()
     }
     
     environment {
