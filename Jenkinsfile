@@ -176,30 +176,58 @@ pipeline {
                     branch 'features'
                 }
             }
+            // Add timeout and retry options
+            options {
+                timeout(time: 10, unit: 'MINUTES')
+                retry(2)
+            }
             steps {
                 echo '📦 Pushing Docker image to GitHub Container Registry...'
                 script {
                     try {
-                        sh """
-                            echo "=== Testing Docker Login ==="
-                            echo "Token length: ${#GITHUB_TOKEN}"
-                            echo "Logging into GitHub Container Registry..."
-                            echo ${GITHUB_TOKEN} | docker login ${REGISTRY} -u aadarsh0507 --password-stdin
-                            
-                            echo "=== Docker Login Successful ==="
-                            echo "Pushing Docker images..."
-                            docker push ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
-                            docker push ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME}
-                            
-                            if [ "${env.BRANCH_NAME}" = "main" ]; then
-                                echo "Pushing latest tag for main branch..."
-                                docker push ${REGISTRY}/${IMAGE_NAME}:latest
-                            fi
-                            
-                            echo "Logging out from GitHub Container Registry..."
-                            docker logout ${REGISTRY}
-                            echo "Docker push completed successfully!"
-                        """
+                        // Use withCredentials to securely handle the token
+                        withCredentials([string(credentialsId: 'ghcr-cred', variable: 'GITHUB_TOKEN_SECURE')]) {
+                            sh """
+                                echo "=== Testing Docker Login ==="
+                                echo "Token length: ${#GITHUB_TOKEN_SECURE}"
+                                echo "Logging into GitHub Container Registry..."
+                                
+                                # Try login with proper authentication
+                                echo '${GITHUB_TOKEN_SECURE}' | docker login ${REGISTRY} -u aadarsh0507 --password-stdin
+                                
+                                # Verify login was successful
+                                docker system info | grep -i registry || echo "Registry info not found"
+                                
+                                echo "=== Docker Login Successful ==="
+                                echo "Pushing Docker images..."
+                                
+                                # Push with retry logic
+                                docker push ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} || {
+                                    echo "Failed to push ${IMAGE_TAG}, trying again..."
+                                    sleep 5
+                                    docker push ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
+                                }
+                                
+                                docker push ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME} || {
+                                    echo "Failed to push ${env.BRANCH_NAME}, trying again..."
+                                    sleep 5
+                                    docker push ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME}
+                                }
+                                
+                                if [ "${env.BRANCH_NAME}" = "main" ]; then
+                                    echo "Pushing latest tag for main branch..."
+                                    docker push ${REGISTRY}/${IMAGE_NAME}:latest || {
+                                        echo "Failed to push latest, trying again..."
+                                        sleep 5
+                                        docker push ${REGISTRY}/${IMAGE_NAME}:latest
+                                    }
+                                fi
+                                
+                                echo "Logging out from GitHub Container Registry..."
+                                docker logout ${REGISTRY}
+                                echo "Docker push completed successfully!"
+                            """
+                        }
                     } catch (Exception e) {
                         echo "Docker push failed: ${e.getMessage()}"
                         sh """
