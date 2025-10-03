@@ -154,8 +154,35 @@ pipeline {
                         withCredentials([usernamePassword(credentialsId: 'ghcr-cred', usernameVariable: 'GITHUB_USERNAME', passwordVariable: 'GITHUB_TOKEN_SECURE')]) {
                             sh """
                                 echo "=== Building Final Docker Image ==="
+                                echo "Current directory: \$(pwd)"
                                 echo "Building Docker image with tag: ${IMAGE_TAG}"
-                                docker build -t ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} .
+                                echo "Docker version: \$(docker --version)"
+                                echo "Docker info: \$(docker info | head -20)"
+                                
+                                # Check if we're in the right directory
+                                echo "Files in current directory:"
+                                ls -la
+                                
+                                # Check if Dockerfile exists
+                                if [ ! -f "Dockerfile" ]; then
+                                    echo "❌ Dockerfile not found in current directory!"
+                                    echo "Looking for Dockerfile in parent directories..."
+                                    find . -name "Dockerfile" -type f 2>/dev/null || echo "No Dockerfile found"
+                                    exit 1
+                                fi
+                                
+                                echo "✅ Dockerfile found, starting build..."
+                                
+                                # Build Docker image with verbose output
+                                docker build -t ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} . || {
+                                    echo "❌ Docker build failed with exit code: \$?"
+                                    echo "Docker build output above shows the error"
+                                    echo "Checking Docker daemon status..."
+                                    docker info || echo "Docker daemon not accessible"
+                                    exit 1
+                                }
+                                
+                                echo "✅ Docker image built successfully"
                                 
                                 echo "Creating branch tag..."
                                 docker tag ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME}
@@ -165,24 +192,44 @@ pipeline {
                                     docker tag ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} ${REGISTRY}/${IMAGE_NAME}:latest
                                 fi
                                 
-                                echo "Verifying Docker image was built successfully..."
-                                docker images | grep ${IMAGE_NAME}
+                                echo "Verifying Docker images..."
+                                docker images | grep ${IMAGE_NAME} || echo "No images found with name ${IMAGE_NAME}"
                                 
                                 echo "=== Logging into GitHub Container Registry ==="
-                                echo '${GITHUB_TOKEN_SECURE}' | docker login ${REGISTRY} -u '${GITHUB_USERNAME}' --password-stdin
+                                echo '${GITHUB_TOKEN_SECURE}' | docker login ${REGISTRY} -u '${GITHUB_USERNAME}' --password-stdin || {
+                                    echo "❌ Docker login failed!"
+                                    echo "Checking token length: \${#GITHUB_TOKEN_SECURE}"
+                                    echo "Checking username: \${GITHUB_USERNAME}"
+                                    exit 1
+                                }
+                                
+                                echo "✅ Docker login successful"
                                 
                                 echo "=== Pushing Docker Image to GitHub Packages ==="
                                 echo "Pushing ${IMAGE_TAG}..."
-                                docker push ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
+                                docker push ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} || {
+                                    echo "❌ Failed to push ${IMAGE_TAG}"
+                                    echo "Checking if image exists locally..."
+                                    docker images | grep ${IMAGE_NAME}
+                                    echo "Checking registry permissions..."
+                                    docker system info | grep -i registry
+                                    exit 1
+                                }
                                 echo "✅ Successfully pushed ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
                                 
                                 echo "Pushing ${env.BRANCH_NAME}..."
-                                docker push ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME}
+                                docker push ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME} || {
+                                    echo "❌ Failed to push ${env.BRANCH_NAME}"
+                                    exit 1
+                                }
                                 echo "✅ Successfully pushed ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME}"
                                 
                                 if [ "${env.BRANCH_NAME}" = "main" ]; then
                                     echo "Pushing latest tag..."
-                                    docker push ${REGISTRY}/${IMAGE_NAME}:latest
+                                    docker push ${REGISTRY}/${IMAGE_NAME}:latest || {
+                                        echo "❌ Failed to push latest"
+                                        exit 1
+                                    }
                                     echo "✅ Successfully pushed ${REGISTRY}/${IMAGE_NAME}:latest"
                                 fi
                                 
