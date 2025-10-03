@@ -7,7 +7,7 @@ pipeline {
         IMAGE_NAME = 'aadarsh0507/greetings-aph'
         
         // GitHub credentials (configure in Jenkins)
-        GITHUB_TOKEN = credentials('github-token')
+        GITHUB_TOKEN = credentials('ghcr-cred')
         
         // Docker image tag
         IMAGE_TAG = "${env.BRANCH_NAME}-${env.BUILD_NUMBER}"
@@ -152,8 +152,6 @@ pipeline {
         
         always {
             echo '📊 Pipeline execution completed'
-            // Clean workspace if needed
-            cleanWs()
         }
     }
 }
