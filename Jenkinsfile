@@ -1,6 +1,16 @@
 pipeline {
     agent any
     
+    // Configure triggers for automatic builds
+    triggers {
+        githubPush()
+    }
+    
+    // Configure webhook for GitHub integration
+    options {
+        githubProjectProperty(projectUrlStr: 'https://github.com/aadarsh0507/greetings-aph')
+    }
+    
     environment {
         // GitHub Container Registry
         REGISTRY = 'ghcr.io'
@@ -21,6 +31,25 @@ pipeline {
             }
         }
         
+        stage('Setup Node.js') {
+            steps {
+                echo '🔧 Setting up Node.js...'
+                script {
+                    // Install Node.js using nvm
+                    sh '''
+                        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
+                        export NVM_DIR="$HOME/.nvm"
+                        [ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"
+                        [ -s "$NVM_DIR/bash_completion" ] && \\. "$NVM_DIR/bash_completion"
+                        nvm install 18
+                        nvm use 18
+                        node --version
+                        npm --version
+                    '''
+                }
+            }
+        }
+        
         stage('Code Quality Check') {
             steps {
                 echo '🔍 Running code quality checks...'
@@ -28,6 +57,9 @@ pipeline {
                     // Check backend code
                     dir('backend') {
                         sh '''
+                            export NVM_DIR="$HOME/.nvm"
+                            [ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"
+                            nvm use 18
                             echo "Checking backend dependencies..."
                             npm install
                             echo "Backend dependencies installed successfully"
@@ -37,6 +69,9 @@ pipeline {
                     // Check frontend code
                     dir('frontend') {
                         sh '''
+                            export NVM_DIR="$HOME/.nvm"
+                            [ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"
+                            nvm use 18
                             echo "Checking frontend dependencies..."
                             npm install
                             echo "Running frontend linter..."
@@ -55,6 +90,9 @@ pipeline {
                     // Backend tests (if you have any)
                     dir('backend') {
                         sh '''
+                            export NVM_DIR="$HOME/.nvm"
+                            [ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"
+                            nvm use 18
                             echo "Running backend tests..."
                             # npm test || true
                             echo "Backend tests completed"
@@ -64,6 +102,9 @@ pipeline {
                     // Frontend tests (if you have any)
                     dir('frontend') {
                         sh '''
+                            export NVM_DIR="$HOME/.nvm"
+                            [ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"
+                            nvm use 18
                             echo "Running frontend tests..."
                             # npm test || true
                             echo "Frontend tests completed"
