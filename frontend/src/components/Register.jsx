@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Eye, EyeOff, UserPlus, Mail, Lock, User } from 'lucide-react';
+import { Eye, EyeOff, UserPlus, Lock, User } from 'lucide-react';
 
 const Register = ({ onSwitchToLogin }) => {
   const { registerOnly } = useAuth();
   const [formData, setFormData] = useState({
     name: '',
-    email: '',
+    userId: '',
     password: '',
     confirmPassword: '',
   });
@@ -105,25 +105,25 @@ const Register = ({ onSwitchToLogin }) => {
               </div>
             </div>
 
-            {/* Email Field */}
+            {/* User ID Field */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email Address
+              <label htmlFor="userId" className="block text-sm font-medium text-gray-700 mb-2">
+                User ID
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
+                  <User className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
+                  id="userId"
+                  name="userId"
+                  type="text"
+                  autoComplete="username"
                   required
-                  value={formData.email}
+                  value={formData.userId}
                   onChange={handleChange}
                   className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder-gray-400"
-                  placeholder="Enter your email"
+                  placeholder="Enter your user ID"
                 />
               </div>
             </div>

@@ -3,6 +3,7 @@ require('dotenv').config();
 
 const Patient = require('../models/Patient');
 const Template = require('../models/Template');
+const User = require('../models/User');
 
 // Sample patients data
 const samplePatients = [
@@ -116,6 +117,7 @@ const seedDatabase = async () => {
     // Clear existing data
     await Patient.deleteMany({});
     await Template.deleteMany({});
+    await User.deleteMany({});
     console.log('🗑️  Cleared existing data');
     
     // Add some patients with today's and tomorrow's birthdays
@@ -176,12 +178,25 @@ const seedDatabase = async () => {
     const createdTemplates = await Template.insertMany(sampleTemplates);
     console.log(`📝 Created ${createdTemplates.length} templates`);
     
+    // Create default admin user
+    const defaultUser = await User.create({
+      name: 'Admin User',
+      userId: 'admin',
+      password: 'admin123',
+      isActive: true
+    });
+    console.log(`👤 Created default admin user: ${defaultUser.userId}`);
+    
     console.log('✅ Database seeding completed successfully!');
     console.log('\n📊 Summary:');
     console.log(`   - Patients: ${createdPatients.length}`);
     console.log(`   - Templates: ${createdTemplates.length}`);
+    console.log(`   - Users: 1 (admin)`);
     console.log(`   - Today's birthdays: ${todayPatients.length}`);
     console.log(`   - Tomorrow's birthdays: ${tomorrowPatients.length}`);
+    console.log('\n🔑 Default Login Credentials:');
+    console.log('   User ID: admin');
+    console.log('   Password: admin123');
     
   } catch (error) {
     console.error('❌ Error seeding database:', error.message);

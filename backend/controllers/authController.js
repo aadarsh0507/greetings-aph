@@ -6,21 +6,21 @@ const { generateToken } = require('../middleware/auth');
 // @access  Public
 const register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, userId, password } = req.body;
 
     // Check if user already exists
-    const existingUser = await User.findOne({ email });
+    const existingUser = await User.findOne({ userId });
     if (existingUser) {
       return res.status(400).json({
         success: false,
-        message: 'User already exists with this email address.'
+        message: 'User already exists with this user ID.'
       });
     }
 
     // Create new user
     const user = await User.create({
       name,
-      email,
+      userId,
       password
     });
 
@@ -38,7 +38,7 @@ const register = async (req, res) => {
         user: {
           id: user._id,
           name: user.name,
-          email: user.email,
+          userId: user.userId,
           isActive: user.isActive,
           createdAt: user.createdAt
         },
@@ -69,22 +69,22 @@ const register = async (req, res) => {
 // @access  Public
 const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { userId, password } = req.body;
 
     // Validate input
-    if (!email || !password) {
+    if (!userId || !password) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide email and password.'
+        message: 'Please provide user ID and password.'
       });
     }
 
     // Find user and include password for comparison
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ userId }).select('+password');
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password.'
+        message: 'Invalid user ID or password.'
       });
     }
 
@@ -101,7 +101,7 @@ const login = async (req, res) => {
     if (!isPasswordValid) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid email or password.'
+        message: 'Invalid user ID or password.'
       });
     }
 
@@ -119,7 +119,7 @@ const login = async (req, res) => {
         user: {
           id: user._id,
           name: user.name,
-          email: user.email,
+          userId: user.userId,
           isActive: user.isActive,
           lastLogin: user.lastLogin,
           createdAt: user.createdAt
@@ -149,7 +149,7 @@ const getProfile = async (req, res) => {
         user: {
           id: user._id,
           name: user.name,
-          email: user.email,
+          userId: user.userId,
           isActive: user.isActive,
           lastLogin: user.lastLogin,
           createdAt: user.createdAt,
@@ -171,26 +171,26 @@ const getProfile = async (req, res) => {
 // @access  Private
 const updateProfile = async (req, res) => {
   try {
-    const { name, email } = req.body;
-    const userId = req.user.id;
+    const { name, userId } = req.body;
+    const userObjectId = req.user.id;
 
-    // Check if email is being changed and if it already exists
-    if (email && email !== req.user.email) {
-      const existingUser = await User.findOne({ email, _id: { $ne: userId } });
+    // Check if userId is being changed and if it already exists
+    if (userId && userId !== req.user.userId) {
+      const existingUser = await User.findOne({ userId, _id: { $ne: userObjectId } });
       if (existingUser) {
         return res.status(400).json({
           success: false,
-          message: 'Email address is already in use.'
+          message: 'User ID is already in use.'
         });
       }
     }
 
     const updateData = {};
     if (name) updateData.name = name;
-    if (email) updateData.email = email;
+    if (userId) updateData.userId = userId;
 
     const user = await User.findByIdAndUpdate(
-      userId,
+      userObjectId,
       updateData,
       { new: true, runValidators: true }
     );
@@ -202,7 +202,7 @@ const updateProfile = async (req, res) => {
         user: {
           id: user._id,
           name: user.name,
-          email: user.email,
+          userId: user.userId,
           isActive: user.isActive,
           lastLogin: user.lastLogin,
           createdAt: user.createdAt,

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { Calendar, Send, Users } from 'lucide-react';
+import { Calendar, Send, Users, UserPlus } from 'lucide-react';
+import Register from './Register';
 
 const Dashboard = () => {
   const { user } = useAuth();
@@ -9,8 +10,9 @@ const Dashboard = () => {
   const [filter, setFilter] = useState('');
   const [error, setError] = useState('');
   const [snapshotDate, setSnapshotDate] = useState(null); // Track when snapshot was taken
+  const [showRegister, setShowRegister] = useState(false); // Track register page visibility
 
-  const API_BASE_URL = 'http://localhost:5000/api';
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ;
 
 
 
@@ -193,6 +195,16 @@ const Dashboard = () => {
             </h3>
           </div>
           <div className="flex items-center gap-4">
+            {/* Admin Register Button */}
+            {user && user.userId === 'admin' && (
+              <button
+                onClick={() => setShowRegister(!showRegister)}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
+              >
+                <UserPlus size={20} />
+                {showRegister ? 'Hide Register' : 'Register User'}
+              </button>
+            )}
             {patients.length > 0 && (
               <button
                 onClick={sendGreetings}
@@ -263,6 +275,17 @@ const Dashboard = () => {
           </div>
         )}
       </div>
+
+      {/* Register Form for Admin */}
+      {showRegister && user && user.userId === 'admin' && (
+        <div className="bg-white rounded-xl shadow-lg p-6 mt-6">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <UserPlus className="text-purple-600" size={20} />
+            Register New User
+          </h3>
+          <Register onSwitchToLogin={() => setShowRegister(false)} />
+        </div>
+      )}
     </div>
   );
 };

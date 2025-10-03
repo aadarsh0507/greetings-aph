@@ -19,4 +19,8 @@ export default defineConfig({
       },
     },
   },
+  define: {
+    // Make environment variables available to the client
+    'process.env': process.env,
+  },
 });
