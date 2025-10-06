@@ -91,6 +91,78 @@ pipeline {
             }
         }
         
+        stage('Sonar Scan') {
+            steps {
+                echo '🔍 Running SonarQube analysis...'
+                script {
+                    withSonarQubeEnv('SonarQube') {
+                        sh '''
+                            export NVM_DIR="$HOME/.nvm"
+                            [ -s "$NVM_DIR/nvm.sh" ] && \\. "$NVM_DIR/nvm.sh"
+                            nvm use 18
+                            
+                            # Install SonarScanner
+                            if ! command -v sonar-scanner &> /dev/null; then
+                                echo "Installing SonarScanner..."
+                                wget -q https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+                                unzip -q sonar-scanner-cli-5.0.1.3006-linux.zip
+                                export PATH="$PATH:$(pwd)/sonar-scanner-5.0.1.3006-linux/bin"
+                            fi
+                            
+                            # Run SonarQube analysis
+                            sonar-scanner \
+                                -Dsonar.projectKey=APH-Greetings \
+                                -Dsonar.projectName="APH Greetings - Patient Birthday Manager" \
+                                -Dsonar.projectVersion=1.0.0 \
+                                -Dsonar.sources=frontend/src,backend \
+                                -Dsonar.exclusions="**/node_modules/**,**/build/**,**/dist/**,**/*.min.js,**/*.map,**/coverage/**,**/artifacts/**,**/*.d.ts" \
+                                -Dsonar.javascript.file.suffixes=.js,.jsx \
+                                -Dsonar.qualitygate.wait=true \
+                                -Dsonar.branch.name=${BRANCH_NAME}
+                        '''
+                    }
+                }
+            }
+        }
+        
+        stage('Quality Gate') {
+            steps {
+                echo '✅ Waiting for SonarQube Quality Gate...'
+                script {
+                    timeout(time: 10, unit: 'MINUTES') {
+                        def qg = waitForQualityGate()
+                        if (qg.status != 'OK') {
+                            error "Quality Gate failed: ${qg.status}"
+                        }
+                        echo "Quality Gate passed: ${qg.status}"
+                    }
+                }
+            }
+        }
+        
+        stage('Trivy Code Scan') {
+            steps {
+                echo '🔒 Running Trivy security scan...'
+                script {
+                    sh '''
+                        # Install Trivy if not present
+                        if ! command -v trivy &> /dev/null; then
+                            echo "Installing Trivy..."
+                            curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+                        fi
+                        
+                        # Run Trivy filesystem scan
+                        echo "Scanning filesystem for vulnerabilities..."
+                        trivy fs --format json --output trivy-fs-report.json . || true
+                        trivy fs --format table . || true
+                        
+                        # Generate console output
+                        trivy fs --format table . > trivy-fs-console.txt || true
+                    '''
+                }
+            }
+        }
+        
         stage('Run Tests') {
             steps {
                 echo '🧪 Running tests...'
@@ -146,7 +218,7 @@ pipeline {
                 echo '🎉 Pipeline completed successfully! Creating Docker image...'
                 
                 // Build and push Docker image only after ALL stages succeed
-                stage('Create Docker Image') {
+                stage('Backend Docker Build') {
                     echo '🐳 Building Docker image after successful pipeline completion...'
                     
                     try {
@@ -240,6 +312,119 @@ pipeline {
                                 echo "🎉 Docker image successfully pushed to GitHub Packages!"
                             """
                         }
+                    } catch (Exception e) {
+                        echo "❌ Docker build failed: ${e.getMessage()}"
+                        throw e
+                    }
+                }
+                
+                stage('Backend Image Trivy Scan') {
+                    echo '🔒 Running Trivy image security scan...'
+                    script {
+                        sh '''
+                            # Install Trivy if not present
+                            if ! command -v trivy &> /dev/null; then
+                                echo "Installing Trivy..."
+                                curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+                            fi
+                            
+                            # Run Trivy image scan
+                            echo "Scanning Docker image for vulnerabilities..."
+                            trivy image --format json --output trivy-backend-image.json ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} || true
+                            trivy image --format table ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} || true
+                            
+                            # Generate console output
+                            trivy image --format table ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} > trivy-backend-console.txt || true
+                        '''
+                    }
+                }
+                
+                stage('Push Backend to GHCR') {
+                    echo '📦 Pushing Docker image to GitHub Container Registry...'
+                    try {
+                        withCredentials([usernamePassword(credentialsId: 'aadarsh-ghcr-cred', usernameVariable: 'GITHUB_USERNAME', passwordVariable: 'GITHUB_TOKEN_SECURE')]) {
+                            sh """
+                                echo "=== Logging into GitHub Container Registry ==="
+                                echo '${GITHUB_TOKEN_SECURE}' | docker login ${REGISTRY} -u '${GITHUB_USERNAME}' --password-stdin || {
+                                    echo "❌ Docker login failed!"
+                                    echo "Checking token length: \${#GITHUB_TOKEN_SECURE}"
+                                    echo "Checking username: \${GITHUB_USERNAME}"
+                                    exit 1
+                                }
+
+                                echo "✅ Docker login successful"
+
+                                echo "=== Pushing Docker Image to GitHub Packages ==="
+                                echo "Pushing ${IMAGE_TAG}..."
+                                docker push ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} || {
+                                    echo "❌ Failed to push ${IMAGE_TAG}"
+                                    echo "Checking if image exists locally..."
+                                    docker images | grep ${IMAGE_NAME}
+                                    echo "Checking registry permissions..."
+                                    docker system info | grep -i registry
+                                    exit 1
+                                }
+                                echo "✅ Successfully pushed ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+
+                                echo "Pushing ${env.BRANCH_NAME}..."
+                                docker push ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME} || {
+                                    echo "❌ Failed to push ${env.BRANCH_NAME}"
+                                    exit 1
+                                }
+                                echo "✅ Successfully pushed ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME}"
+
+                                if [ "${env.BRANCH_NAME}" = "main" ]; then
+                                    echo "Pushing latest tag..."
+                                    docker push ${REGISTRY}/${IMAGE_NAME}:latest || {
+                                        echo "❌ Failed to push latest"
+                                        exit 1
+                                    }
+                                    echo "✅ Successfully pushed ${REGISTRY}/${IMAGE_NAME}:latest"
+                                fi
+
+                                echo "Logging out from GitHub Container Registry..."
+                                docker logout ${REGISTRY}
+
+                                echo "🎉 Docker image successfully pushed to GitHub Packages!"
+                            """
+                        }
+                    } catch (Exception e) {
+                        echo "❌ Docker push failed: ${e.getMessage()}"
+                        throw e
+                    }
+                }
+                
+                stage('Cleanup Backend Images') {
+                    echo '🧹 Cleaning up local Docker images...'
+                    script {
+                        sh '''
+                            echo "Cleaning up local Docker images to save space..."
+                            docker rmi ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} || true
+                            docker rmi ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME} || true
+                            if [ "${env.BRANCH_NAME}" = "main" ]; then
+                                docker rmi ${REGISTRY}/${IMAGE_NAME}:latest || true
+                            fi
+                            echo "✅ Local image cleanup completed"
+                        '''
+                    }
+                }
+                
+                stage('Docker Image URL') {
+                    echo '🔗 Generating Docker image URLs...'
+                    script {
+                        sh """
+                            echo "=== GitHub Packages URLs ==="
+                            echo "📦 Main Image: ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+                            echo "🏷️  Branch Tag: ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME}"
+                            if [ "${env.BRANCH_NAME}" = "main" ]; then
+                                echo "⭐ Latest Tag: ${REGISTRY}/${IMAGE_NAME}:latest"
+                            fi
+                            echo ""
+                            echo "🔗 View package at: https://github.com/aadarsh0507/greetings-aph/pkgs/container/greetings-aph"
+                            echo "📥 Pull command: docker pull ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+                        """
+                    }
+                }
                         
                         echo "=== GitHub Packages Summary ==="
                         echo "📦 Single Docker image created and pushed:"
