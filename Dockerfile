@@ -13,10 +13,6 @@ RUN npm ci
 # Copy frontend source code
 COPY frontend/ ./
 
-# Set environment variables for build
-ARG VITE_API_BASE_URL=http://localhost:5000/api
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
-
 # Build the frontend
 RUN npm run build
 
@@ -35,8 +31,13 @@ COPY backend/package*.json ./backend/
 WORKDIR /app/backend
 RUN npm ci --only=production
 
-# Copy backend source code
+# Copy backend source code (including .env file for environment variables)
+# Note: .env file is intentionally included to provide configuration
 COPY backend/ ./
+
+# Ensure .env file is properly copied and accessible
+RUN ls -la .env || echo "No .env file found"
+RUN echo "Checking .env file contents:" && cat .env || echo "Could not read .env file"
 
 # Copy built frontend from previous stage
 COPY --from=frontend-build /app/frontend/dist /app/frontend/dist
@@ -48,14 +49,21 @@ RUN npm install -g serve
 WORKDIR /app
 RUN echo '#!/bin/sh' > start.sh && \
     echo 'set -e' >> start.sh && \
+    echo '# Verify .env file exists' >> start.sh && \
+    echo 'echo "Checking .env file in backend directory..."' >> start.sh && \
+    echo 'cd /app/backend' >> start.sh && \
+    echo 'ls -la .env || echo "Warning: .env file not found"' >> start.sh && \
+    echo '' >> start.sh && \
     echo '# Start backend in background' >> start.sh && \
-    echo 'cd /app/backend && node server.js &' >> start.sh && \
+    echo 'echo "Starting backend server..."' >> start.sh && \
+    echo 'node server.js &' >> start.sh && \
     echo 'BACKEND_PID=$!' >> start.sh && \
     echo '' >> start.sh && \
     echo '# Wait a moment for backend to start' >> start.sh && \
     echo 'sleep 5' >> start.sh && \
     echo '' >> start.sh && \
     echo '# Start frontend on port 5173' >> start.sh && \
+    echo 'echo "Starting frontend server..."' >> start.sh && \
     echo 'cd /app/frontend/dist && serve -s . -l 5173 &' >> start.sh && \
     echo 'FRONTEND_PID=$!' >> start.sh && \
     echo '' >> start.sh && \
@@ -85,4 +93,3 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
 
 # Start the application
 CMD ["/app/start.sh"]
-
