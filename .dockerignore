@@ -45,3 +45,9 @@ logs/
 # Temporary files
 tmp/
 temp/
+
+# Environment files (sensitive data) - COMMENTED OUT TO ALLOW .env IN DOCKER
+# .env
+# .env.*
+# backend/.env
+# frontend/.env
