@@ -64,27 +64,25 @@ pipeline {
             }
         }
         
-        stage('Code Quality Check') {
+        stage('Install Dependencies') {
             steps {
-                echo '🔍 Running code quality checks...'
+                echo '📦 Installing project dependencies...'
                 script {
-                    // Check backend code
+                    // Install backend dependencies
                     dir('backend') {
                         sh '''
-                            echo "Checking backend dependencies..."
+                            echo "Installing backend dependencies..."
                             npm install --no-audit --no-fund
                             echo "Backend dependencies installed successfully"
                         '''
                     }
                     
-                    // Check frontend code
+                    // Install frontend dependencies
                     dir('frontend') {
                         sh '''
-                            echo "Checking frontend dependencies..."
+                            echo "Installing frontend dependencies..."
                             npm install --no-audit --no-fund
-                            echo "Running frontend linter..."
-                            npm run lint || echo "Linting completed with warnings"
-                            echo "Frontend check completed"
+                            echo "Frontend dependencies installed successfully"
                         '''
                     }
                 }
@@ -115,6 +113,22 @@ pipeline {
                                 -Dsonar.javascript.file.suffixes=.js,.jsx \
                                 -Dsonar.qualitygate.wait=false \
                                 -Dsonar.branch.name=${BRANCH_NAME}
+                        '''
+                    }
+                }
+            }
+        }
+        
+        stage('Code Quality Check') {
+            steps {
+                echo '🔍 Running code quality checks...'
+                script {
+                    // Check frontend code
+                    dir('frontend') {
+                        sh '''
+                            echo "Running frontend linter..."
+                            npm run lint || echo "Linting completed with warnings"
+                            echo "Frontend check completed"
                         '''
                     }
                 }
