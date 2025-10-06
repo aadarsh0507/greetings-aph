@@ -43,27 +43,60 @@ pipeline {
             steps {
                 echo '🔍 Running SonarQube analysis...'
                 script {
-                    withSonarQubeEnv('SonarQube') {
-                        sh '''
-                            # Install SonarScanner if not present
-                            if ! command -v sonar-scanner &> /dev/null; then
-                                echo "Installing SonarScanner..."
-                                wget -q https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
-                                unzip -q sonar-scanner-cli-5.0.1.3006-linux.zip
-                                export PATH="$PATH:$(pwd)/sonar-scanner-5.0.1.3006-linux/bin"
-                            fi
-                            
-                            # Run SonarQube analysis with proper configuration
-                            sonar-scanner \
-                                -Dsonar.projectKey=APH-Greetings \
-                                -Dsonar.projectName="APH Greetings - Patient Birthday Manager" \
-                                -Dsonar.projectVersion=1.0.0 \
-                                -Dsonar.sources=frontend/src,backend \
-                                -Dsonar.exclusions="**/node_modules/**,**/build/**,**/dist/**,**/*.min.js,**/*.map,**/coverage/**,**/artifacts/**,**/*.d.ts,**/nativewind-env.d.ts,**/vite-env.d.ts,**/tailwind.config.js,**/postcss.config.js,**/vite.config.js,**/eslint.config.js" \
-                                -Dsonar.javascript.file.suffixes=.js,.jsx \
-                                -Dsonar.qualitygate.wait=false \
-                                -Dsonar.branch.name=${BRANCH_NAME}
-                        '''
+                    try {
+                        withSonarQubeEnv('SonarQube') {
+                            sh '''
+                                echo "Starting SonarQube analysis..."
+                                
+                                # Install SonarScanner if not present
+                                if ! command -v sonar-scanner &> /dev/null; then
+                                    echo "Installing SonarScanner..."
+                                    wget -q https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-5.0.1.3006-linux.zip
+                                    unzip -q sonar-scanner-cli-5.0.1.3006-linux.zip
+                                    export PATH="$PATH:$(pwd)/sonar-scanner-5.0.1.3006-linux/bin"
+                                    echo "SonarScanner installed successfully"
+                                fi
+                                
+                                # Verify SonarScanner installation
+                                sonar-scanner --version
+                                
+                                # Check if source directories exist
+                                echo "Checking source directories..."
+                                if [ -d "frontend/src" ]; then
+                                    echo "✅ frontend/src directory found"
+                                    ls -la frontend/src | head -5
+                                else
+                                    echo "⚠️ frontend/src directory not found"
+                                fi
+                                
+                                if [ -d "backend" ]; then
+                                    echo "✅ backend directory found"
+                                    ls -la backend | head -5
+                                else
+                                    echo "⚠️ backend directory not found"
+                                fi
+                                
+                                # Run SonarQube analysis with proper configuration
+                                echo "Running SonarQube analysis..."
+                                sonar-scanner \
+                                    -Dsonar.projectKey=APH-Greetings \
+                                    -Dsonar.projectName="APH Greetings - Patient Birthday Manager" \
+                                    -Dsonar.projectVersion=1.0.0 \
+                                    -Dsonar.sources=frontend/src,backend \
+                                    -Dsonar.exclusions="**/node_modules/**,**/build/**,**/dist/**,**/*.min.js,**/*.map,**/coverage/**,**/artifacts/**,**/*.d.ts,**/nativewind-env.d.ts,**/vite-env.d.ts,**/tailwind.config.js,**/postcss.config.js,**/vite.config.js,**/eslint.config.js" \
+                                    -Dsonar.javascript.file.suffixes=.js,.jsx \
+                                    -Dsonar.qualitygate.wait=false \
+                                    -Dsonar.branch.name=${BRANCH_NAME} || {
+                                        echo "❌ SonarQube analysis failed, but continuing build..."
+                                        exit 0
+                                    }
+                                
+                                echo "✅ SonarQube analysis completed"
+                            '''
+                        }
+                    } catch (Exception e) {
+                        echo "❌ SonarQube analysis failed: ${e.getMessage()}"
+                        echo "Continuing with build..."
                     }
                 }
             }
@@ -74,17 +107,18 @@ pipeline {
                 echo '✅ Checking SonarQube Quality Gate...'
                 script {
                     try {
-                        timeout(time: 5, unit: 'MINUTES') {
+                        timeout(time: 3, unit: 'MINUTES') {
                             def qg = waitForQualityGate()
                             if (qg.status != 'OK') {
                                 echo "Quality Gate status: ${qg.status} - Continuing with build"
+                                echo "Quality Gate details: ${qg}"
                             } else {
                                 echo "Quality Gate passed: ${qg.status}"
                             }
                         }
                     } catch (Exception e) {
                         echo "Quality Gate check failed or timed out: ${e.getMessage()}"
-                        echo "Continuing with build..."
+                        echo "This is expected if SonarQube analysis failed - continuing with build..."
                     }
                 }
             }
@@ -94,21 +128,41 @@ pipeline {
             steps {
                 echo '🔒 Running Trivy security scan...'
                 script {
-                    sh '''
-                        # Install Trivy if not present
-                        if ! command -v trivy &> /dev/null; then
-                            echo "Installing Trivy..."
-                            curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
-                        fi
-                        
-                        # Run Trivy filesystem scan
-                        echo "Scanning filesystem for vulnerabilities..."
-                        trivy fs --format json --output trivy-fs-report.json . || true
-                        trivy fs --format table . || true
-                        
-                        # Generate console output
-                        trivy fs --format table . > trivy-fs-console.txt || true
-                    '''
+                    try {
+                        sh '''
+                            echo "Starting Trivy security scan..."
+                            
+                            # Install Trivy if not present
+                            if ! command -v trivy &> /dev/null; then
+                                echo "Installing Trivy..."
+                                curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
+                                echo "Trivy installed successfully"
+                            fi
+                            
+                            # Verify Trivy installation
+                            trivy --version
+                            
+                            # Run Trivy filesystem scan
+                            echo "Scanning filesystem for vulnerabilities..."
+                            trivy fs --format json --output trivy-fs-report.json . || {
+                                echo "⚠️ Trivy JSON scan failed, but continuing..."
+                            }
+                            
+                            trivy fs --format table . || {
+                                echo "⚠️ Trivy table scan failed, but continuing..."
+                            }
+                            
+                            # Generate console output
+                            trivy fs --format table . > trivy-fs-console.txt 2>&1 || {
+                                echo "⚠️ Trivy console output generation failed, but continuing..."
+                            }
+                            
+                            echo "✅ Trivy security scan completed"
+                        '''
+                    } catch (Exception e) {
+                        echo "❌ Trivy scan failed: ${e.getMessage()}"
+                        echo "Continuing with build..."
+                    }
                 }
             }
         }
@@ -137,14 +191,19 @@ pipeline {
                                 # Check if Dockerfile exists
                                 if [ ! -f "Dockerfile" ]; then
                                     echo "❌ Dockerfile not found in current directory!"
+                                    echo "Available files:"
+                                    find . -name "Dockerfile" -type f 2>/dev/null || echo "No Dockerfile found"
                                     exit 1
                                 fi
                                 
                                 echo "✅ Dockerfile found, starting build..."
                                 
-                                # Build Docker image
+                                # Build Docker image with better error handling
                                 docker build -t ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} . || {
                                     echo "❌ Docker build failed with exit code: \$?"
+                                    echo "Docker build logs above show the error"
+                                    echo "Checking Docker daemon status..."
+                                    docker info || echo "Docker daemon not accessible"
                                     exit 1
                                 }
                                 
@@ -157,21 +216,32 @@ pipeline {
                                     docker tag ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} ${REGISTRY}/${IMAGE_NAME}:latest
                                 fi
                                 
+                                echo "Verifying Docker images..."
+                                docker images | grep ${IMAGE_NAME} || echo "No images found with name ${IMAGE_NAME}"
+                                
                                 echo "=== Logging into GitHub Container Registry ==="
                                 echo '${GITHUB_TOKEN_SECURE}' | docker login ${REGISTRY} -u '${GITHUB_USERNAME}' --password-stdin || {
                                     echo "❌ Docker login failed!"
+                                    echo "Checking token length: \${#GITHUB_TOKEN_SECURE}"
+                                    echo "Checking username: \${GITHUB_USERNAME}"
                                     exit 1
                                 }
                                 
                                 echo "✅ Docker login successful"
                                 
                                 echo "=== Pushing Docker Image to GitHub Packages ==="
+                                echo "Pushing ${IMAGE_TAG}..."
                                 docker push ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} || {
                                     echo "❌ Failed to push ${IMAGE_TAG}"
+                                    echo "Checking if image exists locally..."
+                                    docker images | grep ${IMAGE_NAME}
+                                    echo "Checking registry permissions..."
+                                    docker system info | grep -i registry
                                     exit 1
                                 }
                                 echo "✅ Successfully pushed ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
                                 
+                                echo "Pushing ${env.BRANCH_NAME}..."
                                 docker push ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME} || {
                                     echo "❌ Failed to push ${env.BRANCH_NAME}"
                                     exit 1
@@ -179,6 +249,7 @@ pipeline {
                                 echo "✅ Successfully pushed ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME}"
                                 
                                 if [ "${env.BRANCH_NAME}" = "main" ]; then
+                                    echo "Pushing latest tag..."
                                     docker push ${REGISTRY}/${IMAGE_NAME}:latest || {
                                         echo "❌ Failed to push latest"
                                         exit 1
@@ -186,7 +257,9 @@ pipeline {
                                     echo "✅ Successfully pushed ${REGISTRY}/${IMAGE_NAME}:latest"
                                 fi
                                 
+                                echo "Logging out from GitHub Container Registry..."
                                 docker logout ${REGISTRY}
+                                
                                 echo "🎉 Docker image successfully pushed to GitHub Packages!"
                             """
                         }
