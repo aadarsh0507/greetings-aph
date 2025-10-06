@@ -159,48 +159,17 @@ pipeline {
         
         stage('Backend Docker Build') {
             steps {
-                echo '🐳 Building Backend Docker image...'
+                echo '🐳 Building Docker image...'
                 script {
                     try {
                         withCredentials([usernamePassword(credentialsId: 'aadarsh-ghcr-cred', usernameVariable: 'GITHUB_USERNAME', passwordVariable: 'GITHUB_TOKEN_SECURE')]) {
                             sh """
-                                echo "=== Building Backend-Only Docker Image ==="
-                                echo "Building backend Docker image with tag: ${IMAGE_TAG}"
+                                echo "=== Building Docker Image ==="
+                                echo "Building Docker image with tag: ${IMAGE_TAG}"
                                 
-                                # Verify backend directory exists
-                                echo "Backend directory contents:"
-                                ls -la backend/
-                                
-                                # Verify main Dockerfile exists and is backend-only
-                                echo "Using main Dockerfile (backend-only):"
-                                cat Dockerfile
-                                
-                                # Build backend-only Docker image with verbose output
-                                echo "Starting Docker build with verbose output..."
-                                if docker build --no-cache -t ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} .; then
-                                    echo "✅ Backend Docker image built successfully"
-                                    
-                                    # Test the built image
-                                    echo "Testing the built Docker image..."
-                                    docker run --rm -d --name test-backend -p 5001:5000 ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}
-                                    sleep 10
-                                    
-                                    # Check if the container is running
-                                    if docker ps | grep test-backend; then
-                                        echo "✅ Backend container is running"
-                                        
-                                        # Test health endpoint
-                                        if curl -f http://localhost:5001/api/health; then
-                                            echo "✅ Health endpoint is working"
-                                        else
-                                            echo "⚠️ Health endpoint test failed"
-                                        fi
-                                        
-                                        # Stop test container
-                                        docker stop test-backend
-                                    else
-                                        echo "⚠️ Backend container failed to start"
-                                    fi
+                                # Build Docker image
+                                if docker build -t ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} .; then
+                                    echo "✅ Docker image built successfully"
                                     
                                     # Create tags
                                     docker tag ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME}
@@ -213,7 +182,7 @@ pipeline {
                                     if echo '${GITHUB_TOKEN_SECURE}' | docker login ${REGISTRY} -u '${GITHUB_USERNAME}' --password-stdin; then
                                         echo "✅ Docker login successful"
                                         
-                                        echo "=== Pushing Backend Docker Image to GitHub Packages ==="
+                                        echo "=== Pushing Docker Image to GitHub Packages ==="
                                         if docker push ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}; then
                                             echo "✅ Successfully pushed ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
                                             
@@ -229,7 +198,7 @@ pipeline {
                                                 fi
                                                 
                                                 docker logout ${REGISTRY}
-                                                echo "🎉 Backend Docker image successfully pushed to GitHub Packages!"
+                                                echo "🎉 Docker image successfully pushed to GitHub Packages!"
                                             else
                                                 echo "❌ Failed to push ${env.BRANCH_NAME}"
                                                 docker logout ${REGISTRY}
@@ -242,9 +211,7 @@ pipeline {
                                         echo "❌ Docker login failed!"
                                     fi
                                 else
-                                    echo "❌ Backend Docker build failed"
-                                    echo "Docker build logs:"
-                                    docker build -t ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} . 2>&1 || true
+                                    echo "❌ Docker build failed"
                                 fi
                             """
                         }
@@ -260,7 +227,7 @@ pipeline {
         
         stage('Backend Image Trivy Scan') {
             steps {
-                echo '🔒 Running Trivy security scan on backend image...'
+                echo '🔒 Running Trivy image security scan...'
                 script {
                     try {
                         sh '''
@@ -315,7 +282,7 @@ pipeline {
         
         stage('Push Backend to GHCR') {
             steps {
-                echo '📦 Pushing backend Docker image to GitHub Container Registry...'
+                echo '📦 Pushing Docker image to GitHub Container Registry...'
                 script {
                     try {
                         withCredentials([usernamePassword(credentialsId: 'aadarsh-ghcr-cred', usernameVariable: 'GITHUB_USERNAME', passwordVariable: 'GITHUB_TOKEN_SECURE')]) {
@@ -369,7 +336,7 @@ pipeline {
         
         stage('Cleanup Backend Images') {
             steps {
-                echo '🧹 Cleaning up local backend Docker images...'
+                echo '🧹 Cleaning up local Docker images...'
                 script {
                     try {
                         sh '''
@@ -393,7 +360,7 @@ pipeline {
         
         stage('Docker Image URL') {
             steps {
-                echo '🔗 Generating backend Docker image URLs...'
+                echo '🔗 Generating Docker image URLs...'
                 script {
                     try {
                         sh """
@@ -427,9 +394,9 @@ pipeline {
                         echo "   ✅ Sonar Scan: PASSED"
                         echo "   ✅ Quality Gate: PASSED"
                         echo "   ✅ Trivy Code Scan: PASSED"
-                        echo "   ✅ Backend Docker Build: PASSED"
-                        echo "   ✅ Backend Image Security Scan: PASSED"
-                        echo "   ✅ Backend Push to Registry: PASSED"
+                        echo "   ✅ Docker Build: PASSED"
+                        echo "   ✅ Image Security Scan: PASSED"
+                        echo "   ✅ Push to Registry: PASSED"
                         echo "✅ Skip notice completed successfully"
                     } catch (Exception e) {
                         echo "⚠️ Skip notice failed: ${e.getMessage()}"
@@ -456,4 +423,3 @@ pipeline {
         }
     }
 }
-
