@@ -137,51 +137,51 @@ pipeline {
                                 echo "Building Docker image with tag: ${IMAGE_TAG}"
                                 
                                 # Build Docker image
-                                docker build -t ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} . || {
+                                if docker build -t ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} .; then
+                                    echo "✅ Docker image built successfully"
+                                    
+                                    # Create tags
+                                    docker tag ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME}
+                                    
+                                    if [ "${env.BRANCH_NAME}" = "main" ]; then
+                                        docker tag ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} ${REGISTRY}/${IMAGE_NAME}:latest
+                                    fi
+                                    
+                                    echo "=== Logging into GitHub Container Registry ==="
+                                    if echo '${GITHUB_TOKEN_SECURE}' | docker login ${REGISTRY} -u '${GITHUB_USERNAME}' --password-stdin; then
+                                        echo "✅ Docker login successful"
+                                        
+                                        echo "=== Pushing Docker Image to GitHub Packages ==="
+                                        if docker push ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}; then
+                                            echo "✅ Successfully pushed ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+                                            
+                                            if docker push ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME}; then
+                                                echo "✅ Successfully pushed ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME}"
+                                                
+                                                if [ "${env.BRANCH_NAME}" = "main" ]; then
+                                                    if docker push ${REGISTRY}/${IMAGE_NAME}:latest; then
+                                                        echo "✅ Successfully pushed ${REGISTRY}/${IMAGE_NAME}:latest"
+                                                    else
+                                                        echo "❌ Failed to push latest"
+                                                    fi
+                                                fi
+                                                
+                                                docker logout ${REGISTRY}
+                                                echo "🎉 Docker image successfully pushed to GitHub Packages!"
+                                            else
+                                                echo "❌ Failed to push ${env.BRANCH_NAME}"
+                                                docker logout ${REGISTRY}
+                                            fi
+                                        else
+                                            echo "❌ Failed to push ${IMAGE_TAG}"
+                                            docker logout ${REGISTRY}
+                                        fi
+                                    else
+                                        echo "❌ Docker login failed!"
+                                    fi
+                                else
                                     echo "❌ Docker build failed"
-                                    exit 1
-                                }
-                                
-                                echo "✅ Docker image built successfully"
-                                
-                                # Create tags
-                                docker tag ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME}
-                                
-                                if [ "${env.BRANCH_NAME}" = "main" ]; then
-                                    docker tag ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} ${REGISTRY}/${IMAGE_NAME}:latest
                                 fi
-                                
-                                echo "=== Logging into GitHub Container Registry ==="
-                                echo '${GITHUB_TOKEN_SECURE}' | docker login ${REGISTRY} -u '${GITHUB_USERNAME}' --password-stdin || {
-                                    echo "❌ Docker login failed!"
-                                    exit 1
-                                }
-                                
-                                echo "✅ Docker login successful"
-                                
-                                echo "=== Pushing Docker Image to GitHub Packages ==="
-                                docker push ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} || {
-                                    echo "❌ Failed to push ${IMAGE_TAG}"
-                                    exit 1
-                                }
-                                echo "✅ Successfully pushed ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
-                                
-                                docker push ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME} || {
-                                    echo "❌ Failed to push ${env.BRANCH_NAME}"
-                                    exit 1
-                                }
-                                echo "✅ Successfully pushed ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME}"
-                                
-                                if [ "${env.BRANCH_NAME}" = "main" ]; then
-                                    docker push ${REGISTRY}/${IMAGE_NAME}:latest || {
-                                        echo "❌ Failed to push latest"
-                                        exit 1
-                                    }
-                                    echo "✅ Successfully pushed ${REGISTRY}/${IMAGE_NAME}:latest"
-                                fi
-                                
-                                docker logout ${REGISTRY}
-                                echo "🎉 Docker image successfully pushed to GitHub Packages!"
                             """
                         }
                         echo "✅ Backend Docker Build completed successfully"
@@ -227,39 +227,40 @@ pipeline {
                         withCredentials([usernamePassword(credentialsId: 'aadarsh-ghcr-cred', usernameVariable: 'GITHUB_USERNAME', passwordVariable: 'GITHUB_TOKEN_SECURE')]) {
                             sh """
                                 echo "=== Logging into GitHub Container Registry ==="
-                                echo '${GITHUB_TOKEN_SECURE}' | docker login ${REGISTRY} -u '${GITHUB_USERNAME}' --password-stdin || {
+                                if echo '${GITHUB_TOKEN_SECURE}' | docker login ${REGISTRY} -u '${GITHUB_USERNAME}' --password-stdin; then
+                                    echo "✅ Docker login successful"
+
+                                    echo "=== Pushing Docker Image to GitHub Packages ==="
+                                    echo "Pushing ${IMAGE_TAG}..."
+                                    if docker push ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}; then
+                                        echo "✅ Successfully pushed ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
+
+                                        echo "Pushing ${env.BRANCH_NAME}..."
+                                        if docker push ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME}; then
+                                            echo "✅ Successfully pushed ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME}"
+
+                                            if [ "${env.BRANCH_NAME}" = "main" ]; then
+                                                echo "Pushing latest tag..."
+                                                if docker push ${REGISTRY}/${IMAGE_NAME}:latest; then
+                                                    echo "✅ Successfully pushed ${REGISTRY}/${IMAGE_NAME}:latest"
+                                                else
+                                                    echo "❌ Failed to push latest"
+                                                fi
+                                            fi
+
+                                            docker logout ${REGISTRY}
+                                            echo "🎉 Docker image successfully pushed to GitHub Packages!"
+                                        else
+                                            echo "❌ Failed to push ${env.BRANCH_NAME}"
+                                            docker logout ${REGISTRY}
+                                        fi
+                                    else
+                                        echo "❌ Failed to push ${IMAGE_TAG}"
+                                        docker logout ${REGISTRY}
+                                    fi
+                                else
                                     echo "❌ Docker login failed!"
-                                    exit 1
-                                }
-
-                                echo "✅ Docker login successful"
-
-                                echo "=== Pushing Docker Image to GitHub Packages ==="
-                                echo "Pushing ${IMAGE_TAG}..."
-                                docker push ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} || {
-                                    echo "❌ Failed to push ${IMAGE_TAG}"
-                                    exit 1
-                                }
-                                echo "✅ Successfully pushed ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
-
-                                echo "Pushing ${env.BRANCH_NAME}..."
-                                docker push ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME} || {
-                                    echo "❌ Failed to push ${env.BRANCH_NAME}"
-                                    exit 1
-                                }
-                                echo "✅ Successfully pushed ${REGISTRY}/${IMAGE_NAME}:${env.BRANCH_NAME}"
-
-                                if [ "${env.BRANCH_NAME}" = "main" ]; then
-                                    echo "Pushing latest tag..."
-                                    docker push ${REGISTRY}/${IMAGE_NAME}:latest || {
-                                        echo "❌ Failed to push latest"
-                                        exit 1
-                                    }
-                                    echo "✅ Successfully pushed ${REGISTRY}/${IMAGE_NAME}:latest"
                                 fi
-
-                                docker logout ${REGISTRY}
-                                echo "🎉 Docker image successfully pushed to GitHub Packages!"
                             """
                         }
                         echo "✅ Push Backend to GHCR completed successfully"
