@@ -167,58 +167,17 @@ pipeline {
                                 echo "=== Building Backend-Only Docker Image ==="
                                 echo "Building backend Docker image with tag: ${IMAGE_TAG}"
                                 
-                                # Create backend-only Dockerfile
-                                cat > Dockerfile.backend << 'EOF'
-# Backend-only Dockerfile for APH-Greetings
-FROM node:18-alpine
-
-WORKDIR /app
-
-# Install production dependencies
-RUN apk add --no-cache tini curl
-
-# Copy backend package files
-COPY backend/package*.json ./
-
-# Install backend dependencies
-RUN npm ci --only=production
-
-# Copy backend source code
-COPY backend/ ./
-
-# Modify database connection to be non-blocking
-RUN sed -i 's/process.exit(1)/console.log("MongoDB not available, continuing without database")/g' config/database.js
-
-# Set default environment variables
-ENV NODE_ENV=production
-ENV PORT=5000
-ENV MONGO_URI=mongodb://localhost:27017/birthday-greetings
-
-# Expose backend port
-EXPOSE 5000
-
-# Use tini to handle signals properly
-ENTRYPOINT ["/sbin/tini", "--"]
-
-# Health check for backend (simplified - just check if port is open)
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \\
-  CMD curl -f http://localhost:5000/api/health || exit 1
-
-# Start the backend server
-CMD ["node", "server.js"]
-EOF
-                                
-                                # Verify the Dockerfile was created
-                                echo "Created Dockerfile.backend:"
-                                cat Dockerfile.backend
-                                
                                 # Verify backend directory exists
                                 echo "Backend directory contents:"
                                 ls -la backend/
                                 
+                                # Verify main Dockerfile exists and is backend-only
+                                echo "Using main Dockerfile (backend-only):"
+                                cat Dockerfile
+                                
                                 # Build backend-only Docker image with verbose output
                                 echo "Starting Docker build with verbose output..."
-                                if docker build --no-cache -f Dockerfile.backend -t ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} .; then
+                                if docker build --no-cache -t ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} .; then
                                     echo "✅ Backend Docker image built successfully"
                                     
                                     # Test the built image
@@ -285,11 +244,8 @@ EOF
                                 else
                                     echo "❌ Backend Docker build failed"
                                     echo "Docker build logs:"
-                                    docker build -f Dockerfile.backend -t ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} . 2>&1 || true
+                                    docker build -t ${REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG} . 2>&1 || true
                                 fi
-                                
-                                # Clean up temporary Dockerfile
-                                rm -f Dockerfile.backend
                             """
                         }
                         echo "✅ Backend Docker Build completed successfully"
