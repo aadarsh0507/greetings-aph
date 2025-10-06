@@ -41,19 +41,31 @@ COPY backend/ ./
 # Copy built frontend from previous stage
 COPY --from=frontend-build /app/frontend/dist /app/frontend/dist
 
+# Install serve globally for serving frontend
+RUN npm install -g serve
+
 # Create a startup script to run both services
 WORKDIR /app
 RUN echo '#!/bin/sh' > start.sh && \
+    echo 'set -e' >> start.sh && \
     echo '# Start backend in background' >> start.sh && \
     echo 'cd /app/backend && node server.js &' >> start.sh && \
     echo 'BACKEND_PID=$!' >> start.sh && \
     echo '' >> start.sh && \
-    echo '# Install serve globally to serve frontend' >> start.sh && \
-    echo 'npm install -g serve' >> start.sh && \
+    echo '# Wait a moment for backend to start' >> start.sh && \
+    echo 'sleep 5' >> start.sh && \
     echo '' >> start.sh && \
     echo '# Start frontend on port 5173' >> start.sh && \
     echo 'cd /app/frontend/dist && serve -s . -l 5173 &' >> start.sh && \
     echo 'FRONTEND_PID=$!' >> start.sh && \
+    echo '' >> start.sh && \
+    echo '# Function to handle shutdown' >> start.sh && \
+    echo 'cleanup() {' >> start.sh && \
+    echo '    echo "Shutting down services..."' >> start.sh && \
+    echo '    kill $BACKEND_PID $FRONTEND_PID 2>/dev/null || true' >> start.sh && \
+    echo '    exit 0' >> start.sh && \
+    echo '}' >> start.sh && \
+    echo 'trap cleanup SIGTERM SIGINT' >> start.sh && \
     echo '' >> start.sh && \
     echo '# Wait for both processes' >> start.sh && \
     echo 'wait $BACKEND_PID $FRONTEND_PID' >> start.sh && \
