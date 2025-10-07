@@ -53,12 +53,19 @@ backend/
 
 2. **Configure environment**:
    ```bash
-   # Edit .env with your settings
-   MONGO_URI=mongodb://localhost:27017/birthday-greeting-app
-   PORT=5000
-   NODE_ENV=development
-   CORS_ORIGIN=http://localhost:5173
+   # Copy the example environment file
+   cp .env.example .env
+   
+   # Edit .env with your actual values
+   # See .env.example for all required variables
    ```
+   
+   **Required Environment Variables:**
+   - `MONGO_URI`: MongoDB connection string
+   - `MSSQL_USER`, `MSSQL_PASS`, `MSSQL_SERVER`, `MSSQL_DATABASE`: MSSQL database credentials
+   - `WA_API_BASE`, `LICENSE_NUMBER`, `API_KEY`: WhatsApp API configuration
+   - `JWT_SECRET`: Secret key for JWT tokens
+   - `PORT`: Server port (default: 5000)
 
 3. **Start MongoDB** (if running locally):
    ```bash
