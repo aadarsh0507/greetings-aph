@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, LogIn, User, Lock } from 'lucide-react';
 
 const Login = () => {
   const { login } = useAuth();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     userId: '',
     password: '',
@@ -33,8 +35,9 @@ const Login = () => {
       if (!result.success) {
         setError(result.message);
       } else {
-        // Login successful, the AuthContext will handle the redirect
+        // Login successful, navigate to dashboard
         console.log('Login successful');
+        navigate('/');
       }
     } catch (error) {
       setError('An unexpected error occurred. Please try again.');

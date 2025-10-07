@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
-// Import environment variables
-const { VITE_API_BASE_URL } = import.meta.env;
+// Debug environment variables
+console.log('All import.meta.env:', import.meta.env);
+console.log('VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
+console.log('Type of VITE_API_BASE_URL:', typeof import.meta.env.VITE_API_BASE_URL);
 
 const AuthContext = createContext();
 
@@ -18,8 +20,8 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const API_BASE_URL = VITE_API_BASE_URL;
-  console.log('VITE_API_BASE_URL from env:', VITE_API_BASE_URL);
+  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+  console.log('VITE_API_BASE_URL from env:', import.meta.env.VITE_API_BASE_URL);
   console.log('Final API_BASE_URL:', API_BASE_URL);
 
   // Initialize auth state from localStorage
