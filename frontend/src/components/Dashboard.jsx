@@ -3,6 +3,9 @@ import { useAuth } from '../contexts/AuthContext';
 import { Calendar, Send, Users, UserPlus } from 'lucide-react';
 import Register from './Register';
 
+// Import environment variables
+const { VITE_API_BASE_URL } = import.meta.env;
+
 const Dashboard = () => {
   const { user } = useAuth();
   const [patients, setPatients] = useState([]);
@@ -12,7 +15,9 @@ const Dashboard = () => {
   const [snapshotDate, setSnapshotDate] = useState(null); // Track when snapshot was taken
   const [showRegister, setShowRegister] = useState(false); // Track register page visibility
 
-  const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+  const API_BASE_URL = VITE_API_BASE_URL;
+  console.log('Dashboard - VITE_API_BASE_URL:', VITE_API_BASE_URL);
+  console.log('Dashboard - API_BASE_URL:', API_BASE_URL);
 
 
 

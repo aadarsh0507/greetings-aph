@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Eye, EyeOff, UserPlus, Lock, User } from 'lucide-react';
 
 const Register = ({ onSwitchToLogin }) => {
   const { registerOnly } = useAuth();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     userId: '',
@@ -58,7 +60,7 @@ const Register = ({ onSwitchToLogin }) => {
       } else {
         // Registration successful, redirect to login page
         console.log('Registration successful');
-        onSwitchToLogin();
+        navigate('/login');
       }
     } catch (error) {
       setError('An unexpected error occurred. Please try again.');
@@ -228,12 +230,12 @@ const Register = ({ onSwitchToLogin }) => {
           <div className="mt-6 text-center">
             <p className="text-gray-600">
               Already have an account?{' '}
-              <button
-                onClick={onSwitchToLogin}
+              <Link
+                to="/login"
                 className="text-blue-600 hover:text-blue-700 font-medium transition-colors duration-200"
               >
                 Sign in here
-              </button>
+              </Link>
             </p>
           </div>
         </div>
