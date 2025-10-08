@@ -14,10 +14,47 @@ const Dashboard = () => {
   const [error, setError] = useState('');
   const [snapshotDate, setSnapshotDate] = useState(null); // Track when snapshot was taken
   const [showRegister, setShowRegister] = useState(false); // Track register page visibility
+  
+  // New state for UHID search functionality
+  const [uhidSearch, setUhidSearch] = useState('');
+  const [searchedPatient, setSearchedPatient] = useState(null);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [searchError, setSearchError] = useState('');
 
   const API_BASE_URL = VITE_API_BASE_URL;
   console.log('Dashboard - VITE_API_BASE_URL:', VITE_API_BASE_URL);
   console.log('Dashboard - API_BASE_URL:', API_BASE_URL);
+
+  // Function to search patient by UHID
+  const searchPatientByUHID = async () => {
+    if (!uhidSearch.trim()) {
+      setSearchError('Please enter a UHID');
+      return;
+    }
+
+    setSearchLoading(true);
+    setSearchError('');
+    setSearchedPatient(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/uhid/${uhidSearch.trim()}`);
+      const result = await response.json();
+      
+      if (result.success) {
+        setSearchedPatient(result.data);
+        setSearchError('');
+      } else {
+        setSearchError(result.message || 'Patient not found');
+        setSearchedPatient(null);
+      }
+    } catch (error) {
+      console.error('Error searching patient:', error);
+      setSearchError('Failed to search patient. Please check if the backend is running.');
+      setSearchedPatient(null);
+    } finally {
+      setSearchLoading(false);
+    }
+  };
 
 
 
@@ -101,7 +138,7 @@ const Dashboard = () => {
         Contact: patient.mobile, // Use the formatted mobile with country code
         Param: patient.name
       }));
-      const response = await fetch('/api/send-whatsapp', {
+      const response = await fetch(`${API_BASE_URL}/send-whatsapp`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -109,20 +146,83 @@ const Dashboard = () => {
         body: JSON.stringify({ patients: whatsappPayload }),
       });
       const result = await response.json();
+      console.log('WhatsApp API Response:', result);
+      
       if (result.success) {
         // Show a summary of WhatsApp API results for each patient
         const successCount = result.results.filter(r => r.success).length;
         const failCount = result.results.length - successCount;
         let message = `WhatsApp API: ${successCount} sent, ${failCount} failed.`;
         if (failCount > 0) {
-          message += '\nFailed: ' + result.results.filter(r => !r.success).map(r => r.patient.Name || r.patient.Contact).join(', ');
+          const failedResults = result.results.filter(r => !r.success);
+          const failedNames = failedResults.map(r => r.patient.Name || r.patient.Contact).join(', ');
+          const errorDetails = failedResults.map(r => r.error || 'Unknown error').join(', ');
+          message += `\nFailed: ${failedNames}`;
+          message += `\nErrors: ${errorDetails}`;
         }
         alert(message);
       } else {
-        alert(result.error || 'Failed to send greetings.');
+        alert(`Failed to send greetings. Error: ${result.error || 'Unknown error'}`);
       }
     } catch (error) {
       alert('Error sending greetings.');
+      console.error(error);
+    }
+  };
+
+  // Send greetings to a specific patient
+  const sendGreetingsToPatient = async (patient) => {
+    if (!patient) {
+      alert('No patient selected to send greetings to.');
+      return;
+    }
+
+    if (!patient.mobile) {
+      alert('Patient does not have a mobile number.');
+      return;
+    }
+
+    // Show confirmation dialog
+    const confirmMessage = `Send birthday greetings to ${patient.name}?\n\nMobile: ${patient.mobile}\nUHID: ${patient.uhid}`;
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      // Prepare the payload for the backend
+      const whatsappPayload = [{
+        Contact: patient.mobile,
+        Param: patient.name
+      }];
+
+      const response = await fetch(`${API_BASE_URL}/send-whatsapp`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ patients: whatsappPayload }),
+      });
+
+      const result = await response.json();
+      console.log('WhatsApp API Response:', result);
+      
+      if (result.success) {
+        const successCount = result.results.filter(r => r.success).length;
+        const failCount = result.results.length - successCount;
+        
+        if (successCount > 0) {
+          alert(`✅ Birthday greetings sent successfully to ${patient.name} (${patient.mobile})`);
+        } else {
+          // Show detailed error information
+          const failedResults = result.results.filter(r => !r.success);
+          const errorDetails = failedResults.map(r => r.error || 'Unknown error').join(', ');
+          alert(`❌ Failed to send greetings to ${patient.name}.\n\nError: ${errorDetails}\n\nPlease check your WhatsApp API configuration in the backend .env file.`);
+        }
+      } else {
+        alert(`❌ Failed to send greetings.\n\nError: ${result.error || 'Unknown error'}\n\nPlease check your WhatsApp API configuration in the backend .env file.`);
+      }
+    } catch (error) {
+      alert(`❌ Error sending greetings.\n\n${error.message}\n\nPlease check your backend server and WhatsApp API configuration.`);
       console.error(error);
     }
   };
@@ -179,6 +279,83 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* UHID Search Panel - Only for Admin */}
+      {user && user.userId === 'admin' && (
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-8">
+          <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+            <Users className="text-green-600" size={20} />
+            Search Patient by UHID
+          </h3>
+          <div className="flex gap-3 mb-4">
+            <input
+              type="text"
+              value={uhidSearch}
+              onChange={(e) => setUhidSearch(e.target.value)}
+              placeholder="Enter UHID (e.g., 4791268)"
+              className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              onKeyPress={(e) => e.key === 'Enter' && searchPatientByUHID()}
+            />
+            <button
+              onClick={searchPatientByUHID}
+              disabled={searchLoading}
+              className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {searchLoading ? 'Searching...' : 'Search'}
+            </button>
+          </div>
+          
+          {/* Search Error */}
+          {searchError && (
+            <div className="mb-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg">
+              <p className="font-medium">Search Error:</p>
+              <p>{searchError}</p>
+            </div>
+          )}
+
+          {/* Searched Patient Display */}
+          {searchedPatient && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex justify-between items-start mb-3">
+                <h4 className="text-lg font-semibold text-green-800">Patient Found</h4>
+                <button
+                  onClick={() => sendGreetingsToPatient(searchedPatient)}
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                >
+                  <Send size={16} />
+                  Send Greetings
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Name</p>
+                  <p className="text-gray-800 font-semibold">{searchedPatient.name || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">UHID</p>
+                  <p className="text-gray-800 font-semibold">{searchedPatient.uhid || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Mobile</p>
+                  <p className="text-gray-800 font-semibold">{searchedPatient.mobile || 'N/A'}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Date of Birth</p>
+                  <p className="text-gray-800 font-semibold">{formatDate(searchedPatient.dob)}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Age</p>
+                  <p className="text-gray-800 font-semibold">{formatAge(searchedPatient.age)}</p>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Gender</p>
+                  <p className="text-gray-800 font-semibold">{searchedPatient.gender || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ...existing code... (Template Form removed) */}
 

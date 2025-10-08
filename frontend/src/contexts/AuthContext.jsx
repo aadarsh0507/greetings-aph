@@ -23,6 +23,12 @@ export const AuthProvider = ({ children }) => {
   const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
   console.log('VITE_API_BASE_URL from env:', import.meta.env.VITE_API_BASE_URL);
   console.log('Final API_BASE_URL:', API_BASE_URL);
+  
+  // Validate API_BASE_URL
+  if (!API_BASE_URL) {
+    console.error('❌ VITE_API_BASE_URL is not defined in environment variables');
+    console.error('Please check your .env file contains: VITE_API_BASE_URL=http://your-ip:port/api');
+  }
 
   // Initialize auth state from localStorage
   useEffect(() => {

@@ -1,0 +1,16 @@
+# Quick Port Change Script
+# To change backend port, edit this file: backend/.env
+# Change the PORT=5005 to any port you want (e.g., PORT=3000, PORT=8000, etc.)
+
+# Current Configuration:
+# Backend: PORT=5005
+# Frontend: VITE_API_BASE_URL=http://192.168.103.158:5005/api
+
+# To test on different ports:
+# 1. Change PORT in backend/.env
+# 2. Change VITE_API_BASE_URL in frontend/.env to match
+# 3. Restart both servers
+
+# Example for port 3000:
+# backend/.env: PORT=3000
+# frontend/.env: VITE_API_BASE_URL=http://192.168.103.158:3000/api

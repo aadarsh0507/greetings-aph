@@ -54,6 +54,24 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/send-whatsapp', sendWhatsAppRoutes);
 
+// API Root endpoint
+app.get('/api', (req, res) => {
+  res.json({
+    message: '🎉 APH Greetings API Server',
+    status: 'Running',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development',
+    endpoints: {
+      health: '/api/health',
+      auth: '/api/auth',
+      users: '/api/users',
+      sendWhatsApp: '/api/send-whatsapp'
+    },
+    documentation: 'See API_DOCUMENTATION.md for details'
+  });
+});
+
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -114,13 +132,23 @@ const startServer = async () => {
     await connectDB();
     
     app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📱 API available at http://localhost:${PORT}/api`);
-      console.log(`🏥 Health check at http://localhost:${PORT}/api/health`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
+      console.log('\n' + '='.repeat(60));
+      console.log('🎉 APH GREETINGS SERVER STARTED SUCCESSFULLY! 🎉');
+      console.log('='.repeat(60));
+      console.log(`🚀 Server running on port: ${PORT}`);
+      console.log(`🌐 Server URL: http://localhost:${PORT}`);
+      console.log(`📱 API Base URL: http://localhost:${PORT}/api`);
+      console.log(`🏥 Health Check: http://localhost:${PORT}/api/health`);
+      console.log(`🔐 Auth Endpoints: http://localhost:${PORT}/api/auth`);
+      console.log(`👥 User Endpoints: http://localhost:${PORT}/api/users`);
+      console.log(`📱 WhatsApp Endpoints: http://localhost:${PORT}/api/send-whatsapp`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`📊 Database: MongoDB`);
+      console.log('='.repeat(60));
+      console.log('✅ Server is ready to accept connections!\n');
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error('❌ Failed to start server:', error);
     process.exit(1);
   }
 };
