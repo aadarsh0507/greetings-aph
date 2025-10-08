@@ -48,6 +48,14 @@ const register = async (req, res) => {
   } catch (error) {
     console.error('Registration error:', error);
     
+    // Database connection error
+    if (error.name === 'MongoNetworkError' || error.name === 'MongoServerError') {
+      return res.status(500).json({
+        success: false,
+        message: 'Database connection error. Please try again later.'
+      });
+    }
+    
     if (error.name === 'ValidationError') {
       const errors = Object.values(error.errors).map(err => err.message);
       return res.status(400).json({

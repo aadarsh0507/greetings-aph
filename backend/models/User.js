@@ -18,6 +18,13 @@ const userSchema = new mongoose.Schema({
     maxlength: [20, 'User ID cannot be more than 20 characters'],
     match: [/^[a-zA-Z0-9_]+$/, 'User ID can only contain letters, numbers, and underscores']
   },
+  employeeId: {
+    type: String,
+    unique: true,
+    sparse: true, // This allows multiple null values
+    trim: true,
+    maxlength: [20, 'Employee ID cannot be more than 20 characters']
+  },
   password: {
     type: String,
     required: [true, 'Please provide a password'],
